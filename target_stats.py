@@ -45,19 +45,12 @@ util_targets = [
 brief_targets = [
     'switch_cpus\.(ipc)',
     'switch_cpus\.committed(Insts)',
-    'switch_cpus\.iew\.IQFullUti(l::1)',
-    'switch_cpus\.iew\.IQFullUti(l::2)',
-    'switch_cpus\.iew\.IQFullUti(l::3)',
-    'switch_cpus\.iq\.scoreBoard(Reads)',
-    # 'switch_cpus\.iew\.IQFullReason::(TooMany)Operand',
-    'switch_cpus\.iew\.IQFullReason::(P1C)onflict',
-    'switch_cpus\.iew\.IQFullReason::(P2C)onflict',
-    'switch_cpus\.iew\.IQFullReason::(P3C)onflict',
-    'switch_cpus\.iew\.IQFullReason::(P1QP)ortLimit',
-    'switch_cpus\.iew\.IQFullReason::(P2QP)ortLimit',
-    'switch_cpus\.iew\.IQFullReason::(P3QP)ortLimit',
-    # 'switch_cpus\.iew\.iewIQ(FullEvents)',
-    'switch_cpus\.num(Cycles)'
+    'switch_cpus\.num(Cycles)',
+    'switch_cpus\.(branchPredindirectMispredicted)',
+    'switch_cpus\.(commit\.branchMispredicts)',
+    'switch_cpus\.(iew\.branchMispredict)',
+    'switch_cpus\.(iew\.branchMispredicts)',
+    'switch_cpus\.(commit\.branchMispredicts)'
 ]
 
 ipc_target = [

@@ -78,6 +78,7 @@ def main():
         if opt.ipc_only:
             d = c.get_stats(path, ipc_target, re_targets=True)
         else:
+            #d = c.get_stats(path, branch_targets, re_targets=True)
             d = c.get_stats(path, brief_targets, re_targets=True)
         if len(d):
             if not opt.st:
