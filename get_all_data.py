@@ -32,7 +32,6 @@ def main():
         out = subprocess.check_output(options)
         out_text = out.decode('utf-8')
         print(out_text)
-        
 
 if __name__ == '__main__':
     main()

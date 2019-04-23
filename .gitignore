@@ -94,3 +94,5 @@ cache_*
 /fig_data
 *.csv
 ./data
+
+*.tar.gz
