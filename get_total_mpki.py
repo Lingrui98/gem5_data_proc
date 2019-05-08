@@ -16,7 +16,7 @@ def get_files():
 def get_mpki(f):
     df = pd.read_csv('./data/'+f, index_col=0)
     df['per_mpki'] = df['iew.branchMispredicts'] / 200000
-    df.to_csv(f)
+    df.to_csv('./data/'+f)
     print('%s: %.2f' % (f[:-4], df['per_mpki'].mean().round(2)))
 
 def main():
