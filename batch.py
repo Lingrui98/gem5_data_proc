@@ -79,7 +79,7 @@ def main():
             d = c.get_stats(path, ipc_target, re_targets=True)
         else:
             #d = c.get_stats(path, branch_targets, re_targets=True)
-            d = c.get_stats(path, brief_targets, re_targets=True)
+            d = c.get_stats(path, branch_targets, re_targets=True)
         if len(d):
             if not opt.st:
                 matrix[pair] = further_proc(pair, d, opt.verbose)
@@ -87,7 +87,23 @@ def main():
                 matrix[pair] = d
 
     df = pd.DataFrame.from_dict(matrix, orient='index')
-    print(df.sort_index(1))
+    #if df['iew.branchMispredict'] != None:
+    #    df['mpki'] = df['iew.branchMispredict'] / df['Insts'] * 1000
+    #    df['Mispredict Rate'] = df['branchPred.condIncorrect'] / df['branchPred.condPredicted']
+    pd.set_option('display.max_columns', None)
+    #print(df.sort_index(1))
+    try:
+        df['Misp%'] = df['Misp'] / df['cond'] * 100
+        df['MPKI'] = df['Misp'] / df['Insts'] * 1000
+        df['Status'] = 'running'
+        df.loc[df['Insts'] > 30000000, ['Status']] = 'done'
+        print(df[['Status', 'ipc', 'indirectMis', 'Misp', 'Misp%', 'MPKI']])
+        print('Mean MPKI is: %.2f' % (df['MPKI'].mean().round(2)))
+        print('Mean Misp%% is: %.2f' % (df['Misp%'].mean().round(2)))
+        df.drop(['Status'], axis=1, inplace=True)
+    except Exception:
+        print("No data yet")
+        exit()
 
     if not opt.st:
         errors = df['IPC prediction error'].values

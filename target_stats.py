@@ -26,14 +26,26 @@ cache_targets = [
 ]
 
 branch_targets = [
-    'iew\.(branchMispredicts::0)',
+    'switch_cpus\.(ipc)',
+    'switch_cpus\.committed(Insts)',
+    #'iew\.(branchMispredicts::0)',
     'iew\.exec_(branches::0)',
-    'iew\.iewExec(LoadInsts::0)',
-    'iew\.exec_(stores::0)',
-    'thread(0\.squashedLoads)',
-    'thread(0\.squashedStores)',
-    '(iqSquashedInstsIssued)',
-    '(commitSquashedInsts)',
+    #'iew\.iewExec(LoadInsts::0)',
+    #'iew\.exec_(stores::0)',
+    '#thread(0\.squashedLoads)',
+    #'thread(0\.squashedStores)',
+    #'(iqSquashedInstsIssued)',
+    #'(commitSquashedInsts)',
+    'switch_cpus\.(commit\.branches)',
+    'switch_cpus\.branchPred(indirectMis)predicted',
+    #'switch_cpus\.(commit\.branchMispredicts)',
+    'switch_cpus\.iew\.predicted(TakenIncorrect)',
+    'switch_cpus\.iew\.predicted(NotTakenIncorrect)',
+    'switch_cpus\.iew\.branch(Misp)redicts',
+    #'switch_cpus\.(commit\.branchMispredicts)'
+    'switch_cpus\.branchPred\.(lookups)',
+    'switch_cpus\.branchPred\.(cond)Predicted',
+    'switch_cpus\.branchPred\.(condIncorrect)'
 ]
 
 util_targets = [
@@ -46,11 +58,6 @@ brief_targets = [
     'switch_cpus\.(ipc)',
     'switch_cpus\.committed(Insts)',
     'switch_cpus\.num(Cycles)',
-    'switch_cpus\.(branchPredindirectMispredicted)',
-    'switch_cpus\.(commit\.branchMispredicts)',
-    'switch_cpus\.(iew\.branchMispredict)',
-    'switch_cpus\.(iew\.branchMispredicts)',
-    'switch_cpus\.(commit\.branchMispredicts)'
 ]
 
 ipc_target = [
