@@ -79,7 +79,7 @@ def main():
             d = c.get_stats(path, ipc_target, re_targets=True)
         else:
             #d = c.get_stats(path, branch_targets, re_targets=True)
-            d = c.get_stats(path, brief_targets, re_targets=True)
+            d = c.get_stats(path, branch_targets, re_targets=True)
         if len(d):
             if not opt.st:
                 matrix[pair] = further_proc(pair, d, opt.verbose)
@@ -87,7 +87,29 @@ def main():
                 matrix[pair] = d
 
     df = pd.DataFrame.from_dict(matrix, orient='index')
-    print(df.sort_index(1))
+    #if df['iew.branchMispredict'] != None:
+    #    df['mpki'] = df['iew.branchMispredict'] / df['Insts'] * 1000
+    #    df['Mispredict Rate'] = df['branchPred.condIncorrect'] / df['branchPred.condPredicted']
+    pd.set_option('display.max_columns', None)
+    #print(df.sort_index(1))
+    try:
+        df['Misp%'] = df['Misp'] / df['cond'] * 100
+        df['MPKI'] = df['Misp'] / df['Insts'] * 1000
+        df['Status'] = 'running'
+        df.loc[df['Insts'] > 30000000, ['Status']] = 'done'
+        print(df[['Status', 'ipc', 'indirectMis', 'Misp', 'Misp%', 'MPKI']])
+        hmean_mpki = len(df['MPKI']) / np.sum(1.0/df['MPKI'])
+        hmean_misp = len(df['Misp%']) / np.sum(1.0/df['Misp%'])
+        gmean_mpki = df['MPKI'].prod() ** (1.0/len(df['MPKI']))
+        gmean_misp = df['Misp%'].prod() ** (1.0/len(df['Misp%']))
+        print('Totally %d tests' % len(df['Status']))
+        print('Mean MPKI is:  %.2f, Hmean MPKI is:  %.4f, Gmean MPKI is:  %.4f' % (df['MPKI'].mean().round(2), hmean_mpki, gmean_mpki))
+        print('Mean Misp%% is: %.2f, Hmean Misp%% is: %.4f, Gmean Misp%% is: %.4f' % (df['Misp%'].mean().round(2), hmean_misp, gmean_misp))
+        print('Mean IPC is: %.4f' % df['ipc'].mean())
+        df.drop(['Status'], axis=1, inplace=True)
+    except Exception:
+        print("No data yet")
+        exit()
 
     if not opt.st:
         errors = df['IPC prediction error'].values
