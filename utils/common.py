@@ -279,7 +279,9 @@ def to_num(x: str) -> (int, float):
         return int(x)
 
 def xs_get_time(line):
-    time_parrern = re.compile('\[PERF \]\[time=\s+(\d+)\].+')
+    time_parrern = re.compile('\[PERF \]\[time=\s+(\d+)\].*')
+    if not time_parrern.search(line):
+        print(line)
     return int(time_parrern.search(line).group(1))
 
 
@@ -294,7 +296,7 @@ def xs_get_raw_stats_around(stat_file: str)-> list:
             if time == 0:
                 time = t
                 # print(time)
-            elif t != time:
+            elif t != time and abs(time - t) > 10:
                 # buff.append('totalCycle,' + str(time - xs_get_time(line)))
                 return buff
 
@@ -307,6 +309,7 @@ def xs_get_stats(stat_file: str, targets: list,
               insts: int=200*(10**6), re_targets=False) -> dict:
     if not os.path.isfile(expu(stat_file)):
         print(stat_file)
+        return None
     assert(os.path.isfile(expu(stat_file)))
     lines = xs_get_raw_stats_around(expu(stat_file))
 
@@ -563,12 +566,12 @@ def scale_tick(df: pd.DataFrame):
 
 def get_spec_ref_time(bmk, ver):
     if ver == '06':
-        top = "/home/zyy/research-data/spec2006/benchspec/CPU2006"
-        ref_file = "/home/zyy/research-data/spec2006/benchspec/CPU2006/{}/data/ref/reftime"
+        top = "/nfs/home/share/cpu2006v99/benchspec/CPU2006"
+        ref_file = "/nfs/home/share/cpu2006v99/benchspec/CPU2006/{}/data/ref/reftime"
     else:
         assert ver == '17'
-        top = "/home/zyy/research-data/spec2017_20201126/benchspec/CPU"
-        ref_file = "/home/zyy/research-data/spec2017_20201126/benchspec/CPU/{}/data/refrate/reftime"
+        top = "/nfs/home/share/spec2017_slim/benchspec/CPU"
+        ref_file = "/nfs/home/share/spec2017_slim/benchspec/CPU/{}/data/refrate/reftime"
 
     codename = None
     for d in os.listdir(top):

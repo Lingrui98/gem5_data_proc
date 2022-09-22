@@ -210,7 +210,11 @@ xs_branch_targets = [
     '(sc_mispred_but_tage_correct)',
     '(sc_correct_and_tage_wrong)',
     '(ftb_commit_misses)',
+    # '(btb_commit_misses)',
     '(ftb_update_req)',
+    
+    '(FrontendBubble)',
+    '(s2_redirect)',
     # '(ubtbRight)',
     # '(ftq: ubtbWrong)',
     # '(btbRight)',

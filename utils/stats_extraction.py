@@ -62,12 +62,13 @@ def get_stat_of_point(args):
     [path, stat_file, weight, func, bmk, workload, point] = args
     stat_dir = osp.join(path, workload, point, stat_file)
     stats = func()(stat_dir)
-    print(workload, point, 'extracted')
     if stats is not None:
+        print(workload, point, 'extracted')
         # if 'ipc' in stats.keys():
         dct = [weight] + [s for s in stats.values()]
         keys = list(stats.keys())
         return ((bmk, workload, point), (dct, keys))
+    print(workload, point, 'is None')
     return None
 
 def glob_weighted_stats(path: str, get_stats_func, white_list, filtered=True,
@@ -217,7 +218,10 @@ def xs_weighted_mpkis(df: pd.DataFrame,
         'BpCWrong',
         'BpRWrong',
         'ftb_commit_misses',
-        'ftb_update_req'
+        'ftb_update_req',
+        'FrontendBubble',
+        's2_redirect',
+        # 'btb_commit_misses'
     ]):
     assert 'commitInstr' in df.columns
 

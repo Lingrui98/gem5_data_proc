@@ -90,6 +90,7 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
             total_misp = 0
             total_misp_b = 0
             total_miss_ftb = 0
+            total_miss_btb = 0
             total_update_ftb = 0
             total_misp_b_ubtb = 0
             total_misp_b_btb = 0
@@ -101,6 +102,8 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
             total_inst = 0
             total_branches = 0
             total_cycle = 0
+            total_frontend_bubble = 0
+            total_s2_redirect = 0
             for workload, df in tree[bmk].items():
                 if (workload in blacklist):
                     continue
@@ -116,7 +119,8 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
                     (b_mpki, bpki, b_misrate) = u.weighted_mpkis(df)
                 else:
                     assert prefix == 'xs_'
-                    ([total_mpki, b_mpki, j_mpki, i_mpki, c_mpki, r_mpki, ftb_mpki, ftb_upki], bpki, b_misrate, sc_rdc_mpki) = u.xs_weighted_mpkis(df)
+                    ([total_mpki, b_mpki, j_mpki, i_mpki, c_mpki, r_mpki, ftb_mpki, ftb_upki, frontend_bubble_pki, s2_redirect_pki], bpki, b_misrate, sc_rdc_mpki) = u.xs_weighted_mpkis(df)
+                    # ([total_mpki, b_mpki, j_mpki, i_mpki, c_mpki, r_mpki, btb_mpki], bpki, b_misrate, sc_rdc_mpki) = u.xs_weighted_mpkis(df)
                 weights.append(weight)
 
                 workload_dict[conf][workload] = {}
@@ -133,9 +137,12 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
                     workload_dict[conf][workload]['MPKI_I'] = i_mpki
                     workload_dict[conf][workload]['MPKI_C'] = c_mpki
                     workload_dict[conf][workload]['MPKI_R'] = r_mpki
-                    # workload_dict[conf][workload]['MPKI_FTB'] = ftb_mpki
-                    # workload_dict[conf][workload]['UPKI_FTB'] = ftb_upki
+                    workload_dict[conf][workload]['MPKI_FTB'] = ftb_mpki
+                    # workload_dict[conf][workload]['MPKI_BTB'] = btb_mpki
+                    workload_dict[conf][workload]['UPKI_FTB'] = ftb_upki
                     workload_dict[conf][workload]['MPKI_RDC_SC'] = sc_rdc_mpki
+                    workload_dict[conf][workload]['FrontendBubble'] = frontend_bubble_pki
+                    workload_dict[conf][workload]['s2_redirect'] = s2_redirect_pki
                 workload_dict[conf][workload]['Coverage'] = weight
 
                 # merge multiple sub-items of a benchmark
@@ -160,7 +167,10 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
                         total_misp_c += insts*c_mpki/1000
                         total_misp_r += insts*r_mpki/1000
                         total_miss_ftb += insts*ftb_mpki/1000
+                        # total_miss_btb += insts*btb_mpki/1000
                         total_update_ftb += insts*ftb_upki/1000
+                        total_frontend_bubble += insts*frontend_bubble_pki/1000
+                        total_s2_redirect += insts*s2_redirect_pki/1000
                         total_rdc_sc += insts*sc_rdc_mpki/1000
                     coverage += weight
                     count += 1
@@ -188,7 +198,11 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
                     bmk_stat[conf][bmk]['mpki_c'] = 1000 * total_misp_c / total_inst
                     bmk_stat[conf][bmk]['mpki_r'] = 1000 * total_misp_r / total_inst
                     bmk_stat[conf][bmk]['misrate_ftb'] = total_miss_ftb / total_update_ftb * 100
+                    # bmk_stat[conf][bmk]['misrate_btb'] = total_miss_btb / total_update_ftb * 100
                     bmk_stat[conf][bmk]['mpki_ftb'] = 1000 * total_miss_ftb / total_inst
+                    bmk_stat[conf][bmk]['frontend_bubble_pki'] = 1000 * total_frontend_bubble / total_inst
+                    bmk_stat[conf][bmk]['s2_redirect_pki'] = 1000 * total_s2_redirect / total_inst
+                    # bmk_stat[conf][bmk]['mpki_btb'] = 1000 * total_miss_btb / total_inst
                     bmk_stat[conf][bmk]['mpki_rdc_sc'] = 1000 * total_rdc_sc / total_inst
     int_list = [
         "perlbench", "bzip2", "gcc", "mcf", 
@@ -214,16 +228,16 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
             bmk_stat[conf] = df
             excluded = df[df['Coverage'] <= min_coverage]
             df = df[df['Coverage'] > min_coverage]
-        # int_df = df.loc[int_list]
-        # # print(int_df.sort_index())
-        # fp_df = df.loc[fp_list]
+        # # # print(int_df.sort_index())
         # # print(fp_df.sort_index())
         # # print(df.sort_index())
         # int_df.to_csv('spec06_int_'+conf+'.csv')
         # fp_df.to_csv('spec06_fp_'+conf+'.csv')
+        int_df = df.loc[int_list]
+        fp_df = df.loc[fp_list]
+        print_score(int_df, clock_rate, 'INT')
+        print_score(fp_df, clock_rate, 'FP')
         df.to_csv('spec06_total_'+conf+'.csv')
-        # print_score(int_df, clock_rate, 'INT')
-        # print_score(fp_df, clock_rate, 'FP')
         print_score(df, clock_rate, 'TOTAL')
         if len(list(excluded.index)):
             print('Excluded because of low coverage:', list(excluded.index))
@@ -292,8 +306,21 @@ def xiangshan_spec2006(stat_file='main_err.txt'):
             # 'XiangShan_his128': '/home53/glr/spec_output/xs_simpoint_batch/SPEC06_EmuTasksConfig_hist128_2021-10-05',
             # 'XiangShan_his64': '/home53/glr/spec_output/xs_simpoint_batch/SPEC06_EmuTasksConfig_hist64_2021-10-06',
             # 'XiangShan_br1': '/home53/glr/spec_output/xs_simpoint_batch/SPEC06_EmuTasksConfig_br1_2021-10-08',
-            'XiangShan': '/home53/glr/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_12_15',
-            'XiangShanNew': '/home53/glr/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_01_07',
+            # 'XiangShan': '/nfs/home/goulingrui/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_02_15',
+            # 'XiangShan_22_06_03': '/nfs/home/goulingrui/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_06_03',
+            # 'XiangShan_22_02_12': '/nfs/home/goulingrui/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_02_12',
+            # 'XiangShan_22_02_15': '/nfs/home/goulingrui/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_02_15',
+            # 'XiangShan_22_08_04': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasks_08_04_2022',
+            # 'XiangShan_21_10_10_YQH': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasks_YQH_21_10_10/',
+            # 'XiangShan_22_06_10': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasksConfig_2022-06-10',
+            'XiangShan_old_ubtb': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasksConfig_2022-09-14_emu-faubtb-perf-base-16t',
+            'XiangShan_fauftb': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasksConfig_2022-09-14_emu-faubtb-perf-16t',
+            'XiangShan_fauftb_new_mechanism': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasksConfig_2022-09-14_emu-faubtb-perf-new-mechanism-16t',
+            # 'XiangShan_22_01_07': '/nfs/home/goulingrui/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_01_07',
+            # 'XiangShan_22_03_19': '/nfs/home/goulingrui/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_03_19',
+            # 'XiangShan_21_12_12': '/nfs/home/goulingrui/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_12_12',
+            # 'XiangShan_21_12_23': '/nfs/home/goulingrui/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_12_23',
+            # 'XiangShanNew': '/home53/glr/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_01_07',
             # 'lzs_run' :'/home/lzs/project/run_spec06/output1020',
             # 'XiangShan_master_fp_0.3': '/home/ljw/master-40-perf/output',
             # 'XiangShan2': '/home51/glr/expri_results/xs_simpoint_batch/emu-master-4t/SPEC06_EmuTasksConfig'
@@ -317,7 +344,9 @@ def xiangshan_spec2006(stat_file='main_err.txt'):
     fp_list = []
     # white_list = bp_list
     white_list = []
-    black_list = ['gcc_expr2']
+    # white_list = ['astar', 'bzip2']
+    black_list = []
+    # black_list = ['mcf', 'omnetpp', 'astar']
     # if (int_stat and not fp_stat):
     #     white_list = int_list
     # elif (fp_stat and not int_stat):
@@ -328,19 +357,24 @@ def xiangshan_spec2006(stat_file='main_err.txt'):
             # base='XiangShan_master_10-28',
             # base='XiangShan_master_10-22',
             # base='XiangShan_decoupled',
-            base='XiangShan',
+            # base='XiangShan_22_02_12',
+            # base='XiangShan_22_02_15',
+            # base='XiangShan_21_10_10_YQH',
+            # base='XiangShan_22_06_10',
+            base='XiangShan_old_ubtb',
             # base='lzs_run',
-            # simpoints=f'/home/glr/gem5_data_proc/simpoint_coverage0.3.json',
-            # simpoints=f'/home/lzs/project/run_spec06/simpoint_coverage0.3_test.json',
-            simpoints=f'/bigdata/zfw/spec_cpt/json/simpoint_summary.json',
-            # simpoints=f'/bigdata/zzf/spec_cpt/simpoint_summary.json',
-            # simpoints=f'/home51/zyy/expri_results/simpoints{ver}.json',
+            # simpoints=f'/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gc_o2_20m/simpoint_summary.json',
+            # simpoints=f'/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gc_o2_50m/simpoint_coverage_0.8.json',
+            # simpoints=f'/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gcb_o2_20m/json/simpoint_summary.json',
+            simpoints=f'/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gcb_o2_20m/json/simpoint_coverage0.3_test.json',
             
             prefix = 'xs_',
             stat_file=stat_file,
             insts_file_fmt =
             # '/bigdata/zzf/spec_cpt/logs/profiling/{}.log',
-            '/bigdata/zfw/spec_cpt/logs/profiling/{}.log',
+            '/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gcb_o2_20m/logs/profiling/{}.log',
+            # '/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gc_o2_20m/logs/profiling/{}.log',
+            # '/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gc_o2_50m/profiling/{}/nemu_out.txt',
             # '/bigdata/zyy/checkpoints_profiles/betapoint_profile_06_fix_mem_addr/{}/nemu_out.txt',
             clock_rate = 2 * 10**9,
             min_coverage = 0.1,
