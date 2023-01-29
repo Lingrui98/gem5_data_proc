@@ -34,7 +34,15 @@ def stats_factory(targets, keys, prefix=''):
             res = {}
             meta_keys = keys_to_meta(keys)
             for k in meta_keys:
-                res[k] = stats[k]
+                try:
+                    res[k] = stats[k]
+                except:
+                    if (k == 'otherMiss' or k == 'returnMiss' or k == 'uncondMiss' or k == 'ftbMiss'):
+                        print(k, "is none, assigning 0")
+                        res[k] = 0
+                    else:
+                        print(k, "is none, returning none")
+                        return None
             return res
         else:
             return None
@@ -200,14 +208,28 @@ def weighted_cpi(df: pd.DataFrame):
 
 def weighted_mpkis(df: pd.DataFrame):
     assert 'Insts' in df.columns
-    assert 'branchMispredicts' in df.columns
+    assert 'condMiss' in df.columns
+    assert 'otherMiss' in df.columns
+    assert 'returnMiss' in df.columns
+    assert 'uncondMiss' in df.columns
+    assert 'ftbMiss' in df.columns
     assert 'branches' in df.columns
-    mpki = 1000 * np.true_divide(df['branchMispredicts'], df['Insts'])
+    b_mpki = 1000 * np.true_divide(df['condMiss'], df['Insts'])
+    j_mpki = 1000 * np.true_divide(df['uncondMiss']-(df['otherMiss']+df['returnMiss']), df['Insts'])
+    i_mpki = 1000 * np.true_divide(df['otherMiss']+df['returnMiss'], df['Insts'])
+    r_mpki = 1000 * np.true_divide(df['returnMiss'], df['Insts'])
+    total_mpki = 1000 * np.true_divide(df['condMiss']+df['uncondMiss'], df['Insts'])
+    ftb_mpki = 1000 * np.true_divide(df['ftbMiss'], df['Insts'])
     bpki = 1000 * np.true_divide(df['branches'], df['Insts'])
-    weighted_mpki = np.dot(df['weight'], mpki) / np.sum(df['weight'])
+    weighted_mpki_total = np.dot(df['weight'], total_mpki) / np.sum(df['weight'])
+    weighted_mpki_b = np.dot(df['weight'], b_mpki) / np.sum(df['weight'])
+    weighted_mpki_i = np.dot(df['weight'], i_mpki) / np.sum(df['weight'])
+    weighted_mpki_j = np.dot(df['weight'], j_mpki) / np.sum(df['weight'])
+    weighted_mpki_r = np.dot(df['weight'], r_mpki) / np.sum(df['weight'])
+    weighted_mpki_ftb = np.dot(df['weight'], ftb_mpki) / np.sum(df['weight'])
     weighted_bpki = np.dot(df['weight'], bpki) / np.sum(df['weight'])
-    weighted_b_misrate = 100 * weighted_mpki / weighted_bpki
-    return (weighted_mpki, weighted_bpki, weighted_b_misrate)
+    weighted_b_misrate = 100 * weighted_mpki_b / weighted_bpki
+    return (weighted_mpki_total, weighted_mpki_b, weighted_mpki_i, weighted_mpki_r, weighted_mpki_j, weighted_mpki_ftb, weighted_bpki, weighted_b_misrate)
 
 def xs_weighted_mpkis(df: pd.DataFrame,
     targets=[

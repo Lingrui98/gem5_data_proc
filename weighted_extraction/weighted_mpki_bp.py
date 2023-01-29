@@ -60,7 +60,8 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
         workload_dict[conf] = {}
         bmk_stat[conf] = {}
         if prefix == '':
-            stats = ['cpus?\.(?:diewc|commit|iew)\.(branchMispredicts)', 'cpus?\.committed(Insts)', 'cpus?\.(?:diewc\.exec_|commit\.)(branches)', 'cpus?\.(ipc)']
+            stats = target
+            print(target)
         else:
             assert prefix == 'xs_'
             stats = target + ['(ipc)']
@@ -116,7 +117,7 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
                 # print(df)
                 cpi, weight = u.weighted_cpi(df)
                 if prefix == '':
-                    (b_mpki, bpki, b_misrate) = u.weighted_mpkis(df)
+                    (total_mpki, b_mpki, i_mpki, r_mpki, j_mpki, ftb_mpki, bpki, b_misrate) = u.weighted_mpkis(df)
                 else:
                     assert prefix == 'xs_'
                     ([total_mpki, b_mpki, j_mpki, i_mpki, c_mpki, r_mpki, ftb_mpki, ftb_upki, frontend_bubble_pki, s2_redirect_pki], bpki, b_misrate, sc_rdc_mpki) = u.xs_weighted_mpkis(df)
@@ -129,15 +130,15 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
                 workload_dict[conf][workload]['MPKI_B'] = b_mpki
                 workload_dict[conf][workload]['BPKI'] = bpki
                 workload_dict[conf][workload]['MISRATE_B'] = b_misrate
+                workload_dict[conf][workload]['MPKI_I'] = i_mpki
+                workload_dict[conf][workload]['MPKI_R'] = r_mpki
+                workload_dict[conf][workload]['MPKI'] = total_mpki
+                workload_dict[conf][workload]['MPKI_FTB'] = ftb_mpki
+                workload_dict[conf][workload]['MPKI_J'] = j_mpki
                 if prefix == 'xs_':
-                    workload_dict[conf][workload]['MPKI'] = total_mpki
                     # workload_dict[conf][workload]['MPKI_B_UBTB'] = ubtb_b_mpki
                     # workload_dict[conf][workload]['MPKI_B_BTB'] = btb_b_mpki
-                    workload_dict[conf][workload]['MPKI_J'] = j_mpki
-                    workload_dict[conf][workload]['MPKI_I'] = i_mpki
                     workload_dict[conf][workload]['MPKI_C'] = c_mpki
-                    workload_dict[conf][workload]['MPKI_R'] = r_mpki
-                    workload_dict[conf][workload]['MPKI_FTB'] = ftb_mpki
                     # workload_dict[conf][workload]['MPKI_BTB'] = btb_mpki
                     workload_dict[conf][workload]['UPKI_FTB'] = ftb_upki
                     workload_dict[conf][workload]['MPKI_RDC_SC'] = sc_rdc_mpki
@@ -158,15 +159,15 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
                     total_cycle += insts * cpi
                     total_misp_b += insts*b_mpki/1000
                     total_branches += insts*bpki/1000
+                    total_misp_i += insts*i_mpki/1000
+                    total_misp_r += insts*r_mpki/1000
+                    total_misp += insts*total_mpki/1000
+                    total_misp_j += insts*j_mpki/1000
+                    total_miss_ftb += insts*ftb_mpki/1000
                     if prefix == 'xs_':
-                        total_misp += insts*total_mpki/1000
                         # total_misp_b_ubtb += insts*ubtb_b_mpki/1000
                         # total_misp_b_btb += insts*btb_b_mpki/1000
-                        total_misp_j += insts*j_mpki/1000
-                        total_misp_i += insts*i_mpki/1000
                         total_misp_c += insts*c_mpki/1000
-                        total_misp_r += insts*r_mpki/1000
-                        total_miss_ftb += insts*ftb_mpki/1000
                         # total_miss_btb += insts*btb_mpki/1000
                         total_update_ftb += insts*ftb_upki/1000
                         total_frontend_bubble += insts*frontend_bubble_pki/1000
@@ -188,16 +189,17 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
                 bmk_stat[conf][bmk]['IPC'] = total_inst / total_cycle
                 bmk_stat[conf][bmk]['mpki_b'] = 1000 * total_misp_b / total_inst
                 bmk_stat[conf][bmk]['misrate_b'] = 100 * total_misp_b / total_branches
+                bmk_stat[conf][bmk]['mpki_i'] = 1000 * total_misp_i / total_inst
+                bmk_stat[conf][bmk]['mpki_r'] = 1000 * total_misp_r / total_inst
+                bmk_stat[conf][bmk]['mpki'] = 1000 * total_misp / total_inst
+                bmk_stat[conf][bmk]['mpki_j'] = 1000 * total_misp_j / total_inst
+                bmk_stat[conf][bmk]['mpki_ftb'] = 1000 * total_miss_ftb / total_inst
+                # bmk_stat[conf][bmk]['misrate_ftb'] = total_miss_ftb / total_update_ftb * 100
 
                 if prefix == 'xs_':
-                    bmk_stat[conf][bmk]['mpki'] = 1000 * total_misp / total_inst
                     # bmk_stat[conf][bmk]['mpki_b_ubtb'] = 1000 * total_misp_b_ubtb / total_inst
                     # bmk_stat[conf][bmk]['mpki_b_btb'] = 1000 * total_misp_b_btb / total_inst
-                    bmk_stat[conf][bmk]['mpki_j'] = 1000 * total_misp_j / total_inst
-                    bmk_stat[conf][bmk]['mpki_i'] = 1000 * total_misp_i / total_inst
                     bmk_stat[conf][bmk]['mpki_c'] = 1000 * total_misp_c / total_inst
-                    bmk_stat[conf][bmk]['mpki_r'] = 1000 * total_misp_r / total_inst
-                    bmk_stat[conf][bmk]['misrate_ftb'] = total_miss_ftb / total_update_ftb * 100
                     # bmk_stat[conf][bmk]['misrate_btb'] = total_miss_btb / total_update_ftb * 100
                     bmk_stat[conf][bmk]['mpki_ftb'] = 1000 * total_miss_ftb / total_inst
                     bmk_stat[conf][bmk]['frontend_bubble_pki'] = 1000 * total_frontend_bubble / total_inst
@@ -233,10 +235,10 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
         # # print(df.sort_index())
         # int_df.to_csv('spec06_int_'+conf+'.csv')
         # fp_df.to_csv('spec06_fp_'+conf+'.csv')
-        int_df = df.loc[int_list]
-        fp_df = df.loc[fp_list]
-        print_score(int_df, clock_rate, 'INT')
-        print_score(fp_df, clock_rate, 'FP')
+        # int_df = df.loc[int_list]
+        # fp_df = df.loc[fp_list]
+        # print_score(int_df, clock_rate, 'INT')
+        # print_score(fp_df, clock_rate, 'FP')
         df.to_csv('spec06_total_'+conf+'.csv')
         print_score(df, clock_rate, 'TOTAL')
         if len(list(excluded.index)):
@@ -267,11 +269,27 @@ def gem5_spec2006():
             # 'F1-': '/home51/zyy/expri_results/omegaflow_spec17/FFS0Config',
             # 'F1H': '/home51/zyy/expri_results/omegaflow_spec17/FFH1Config',
             # 'GEM5': '/home51/glr/expri_results/SPEC06/FullWindowO3Config_2021-04-09_22:21:46'
-            'GEM5_LTAGE': '/home51/glr/expri_results/SPEC06/FullWindowO3Config_2021-11-05_18:02:01',
-            'GEM5_TAGE': '/home51/glr/expri_results/SPEC06/FullWindowO3Config_2021-11-05_20:52:29',
-            'GEM5_TAGE_his4-64': '/home51/glr/expri_results/SPEC06/FullWindowO3Config_2021-11-05_20:50:10',
-            'GEM5_TAGE_his2-128': '/home51/glr/expri_results/SPEC06/FullWindowO3Config_2021-11-05_21:28:09',
-            'GEM5_TAGE_his4-128': '/home51/glr/expri_results/SPEC06/FullWindowO3Config_2021-11-05_21:31:52',
+            # 'GEM5_LTAGE': '/home51/glr/expri_results/SPEC06/FullWindowO3Config_2021-11-05_18:02:01',
+            # 'GEM5_TAGE': '/home51/glr/expri_results/SPEC06/FullWindowO3Config_2021-11-05_20:52:29',
+            # 'GEM5_TAGE_his4-64': '/home51/glr/expri_results/SPEC06/FullWindowO3Config_2021-11-05_20:50:10',
+            # 'GEM5_TAGE_his2-128': '/home51/glr/expri_results/SPEC06/FullWindowO3Config_2021-11-05_21:28:09',
+            # 'GEM5_TAGE_his4-128': '/home51/glr/expri_results/SPEC06/FullWindowO3Config_2021-11-05_21:31:52',
+            # 'new_u_algorithm': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuNoL3-02624fcac',
+            # 'new_base': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuNoL3-341ad0d23',
+            # 'thr_shift_10b': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuNoL3-59005177e',
+            'nanhu-ftb': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-always-taken',
+            'nanhu-ftb-no-always-taken': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-no-always-taken',
+            'nanhu-ftb-uftb-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-uftb-fixed',
+            'nanhu-ftb-uncond-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-uncond-slot-fixed',
+            'nanhu-ftb-all-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-all-fixed',
+            'nanhu-ftb-false-hit-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-false-hit-fixed',
+            'nanhu-ftb-br-slot-shuffled': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-br-slot-shuffled',
+            'nanhu-fetchwidth-fetchqueue-size': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-fetchwidth-fetchqueue-size',
+            'nanhu-with-ittage': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-with-ittage',
+            'nanhu-with-db-all': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-with-db-all',
+            'nanhu-tage-alt-tag': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-tage-alt-tag',
+            'nanhu-ittage': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-ittage',
+            
             # 'GEM5_Tour': '/home51/glr/expri_results/SPEC06/FullWindowO3Config_2021-10-12_21:31:41',
             # 'GEM5_BiMode': '/home51/glr/expri_results/SPEC06/FullWindowO3Config_2021-10-12_21:37:50',
             # 'GEM5hist128': '/home51/glr/expri_results/SPEC06/FullWindowO3Config_2021-06-23_14:08:12',
@@ -284,16 +302,19 @@ def gem5_spec2006():
     compute_weighted_mpki(
             ver=ver,
             confs=confs,
-            base='GEM5_TAGE',
-            simpoints=f'/home/glr/gem5_data_proc/simpoint_coverage0.3.json',
+            # base='new_u_algorithm',
+            base='nanhu-ftb',
+            simpoints=f'/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gc_o2_20m/simpoint_summary.json',
             prefix = '',
             stat_file='m5out/stats.txt',
             insts_file_fmt =
-            '/bigdata/zzf/spec_cpt/logs/profiling/{}.log',
+            # '/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gc_o2_50m/profiling/{}/nemu_out.txt',
+            '/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gc_o2_20m/logs/profiling/{}.log',
+            # '/bigdata/zzf/spec_cpt/logs/profiling/{}.log',
             clock_rate = 4 * 10**9,
             min_coverage = 0.1,
             # blacklist = ['gamess'],
-            whitelist = ['mcf', 'astar', 'gobmk', 'gcc', 'sjeng', 'bzip2'],
+            # whitelist = ['mcf', 'astar', 'gobmk', 'gcc', 'sjeng', 'bzip2'],
             merge_benckmark=True,
             )
 
@@ -313,13 +334,15 @@ def xiangshan_spec2006(stat_file='main_err.txt'):
             # 'XiangShan_22_08_04': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasks_08_04_2022',
             # 'XiangShan_21_10_10_YQH': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasks_YQH_21_10_10/',
             # 'XiangShan_22_06_10': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasksConfig_2022-06-10',
-            'XiangShan_old_ubtb': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasksConfig_2022-09-14_emu-faubtb-perf-base-16t',
-            'XiangShan_fauftb': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasksConfig_2022-09-14_emu-faubtb-perf-16t',
-            'XiangShan_fauftb_new_mechanism': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasksConfig_2022-09-14_emu-faubtb-perf-new-mechanism-16t',
+            # 'XiangShan_old_ubtb': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasksConfig_2022-09-14_emu-faubtb-perf-base-16t',
+            # 'XiangShan_fauftb': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasksConfig_2022-09-14_emu-faubtb-perf-16t',
+            # 'XiangShan_fauftb_new_mechanism': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasksConfig_2022-09-14_emu-faubtb-perf-new-mechanism-16t',
+            # 'XiangShan_nanhu': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasks_12_05_2022',
+            'XiangShan_nanhu_gcb': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasks_12_03_2022',
             # 'XiangShan_22_01_07': '/nfs/home/goulingrui/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_01_07',
             # 'XiangShan_22_03_19': '/nfs/home/goulingrui/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_03_19',
             # 'XiangShan_21_12_12': '/nfs/home/goulingrui/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_12_12',
-            # 'XiangShan_21_12_23': '/nfs/home/goulingrui/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_12_23',
+            # 'XiangShan_22_08_21': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasks_08_21_2022',
             # 'XiangShanNew': '/home53/glr/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_01_07',
             # 'lzs_run' :'/home/lzs/project/run_spec06/output1020',
             # 'XiangShan_master_fp_0.3': '/home/ljw/master-40-perf/output',
@@ -361,12 +384,14 @@ def xiangshan_spec2006(stat_file='main_err.txt'):
             # base='XiangShan_22_02_15',
             # base='XiangShan_21_10_10_YQH',
             # base='XiangShan_22_06_10',
-            base='XiangShan_old_ubtb',
+            # base='XiangShan_22_08_21',
+            # base='XiangShan_nanhu',
+            base='XiangShan_nanhu_gcb',
             # base='lzs_run',
             # simpoints=f'/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gc_o2_20m/simpoint_summary.json',
-            # simpoints=f'/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gc_o2_50m/simpoint_coverage_0.8.json',
-            # simpoints=f'/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gcb_o2_20m/json/simpoint_summary.json',
-            simpoints=f'/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gcb_o2_20m/json/simpoint_coverage0.3_test.json',
+            # simpoints=f'/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gc_o2_50m/simpoint_summary.json',
+            simpoints=f'/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gcb_o2_20m/json/simpoint_summary.json',
+            # simpoints=f'/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gcb_o2_20m/json/simpoint_coverage0.3_test.json',
             
             prefix = 'xs_',
             stat_file=stat_file,

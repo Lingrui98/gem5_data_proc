@@ -34,7 +34,11 @@ cache_targets = [
 ]
 
 branch_targets = [
-    'cpus?\.(?:diewc|commit|iew)\.(branchMispredicts)',
+    'cpus?\.branchPred\.(condMiss)',
+    'cpus?\.branchPred\.(uncondMiss)',
+    'cpus?\.branchPred\.(otherMiss)',
+    'cpus?\.branchPred\.(returnMiss)',
+    'cpus?\.branchPred\.(ftbMiss)',
     'cpus?\.(?:diewc\.exec_|commit\.)(branches)',
     'cpus?\.(ipc)',
     'cpus?\.committed(Insts)',
@@ -209,9 +213,9 @@ xs_branch_targets = [
 
     '(sc_mispred_but_tage_correct)',
     '(sc_correct_and_tage_wrong)',
-    '(ftb_commit_misses)',
+    ' (ftb_commit_misses)',
     # '(btb_commit_misses)',
-    '(ftb_update_req)',
+    ' (ftb_update_req)',
     
     '(FrontendBubble)',
     '(s2_redirect)',

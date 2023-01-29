@@ -339,6 +339,8 @@ def xs_get_stats(stat_file: str, targets: list,
                 if (pattern_status[k] is None):
                     m = patterns[k].search(line)
                     if not m is None:
+                        # if str(k) == 'ftb_commit_misses':
+                        #     print(line, str(k))
                         # print('found pattern '+ str(k) + ' in line '+ line)
                         if re_targets:
                             stats[k] = to_num(m.group(1))
