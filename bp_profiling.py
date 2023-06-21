@@ -32,6 +32,7 @@ actions.add_argument("--static-branch", help="static branch counts", action="sto
 actions.add_argument("-p", "--phase", help="output stats by phase", action="store_true", default=False)
 actions.add_argument("--fb", help="fetch block size", action="store_true", default=False)
 actions.add_argument("--lb", help="loop buffer inst supply percent", action="store_true", default=False)
+actions.add_argument("--lb-potential", help="find checkpoints may potentially gain performance using loop buffer", action="store_true", default=False)
 actions.add_argument("--gem5-vs-rtl", help="output rtl data compared to rtl for supported profiles", action='store_true', default=False)
 actions.add_argument("--top-mispred", help="copy top mispredictions to res path", action="store_true", default=False)
 
@@ -40,6 +41,9 @@ args = parser.parse_args()
 if not args.static_branch and not args.fb and not args.top_mispred and not args.lb:
     print("no profiling option specified, exit")
     exit(0)
+
+need_gem5_stat_tree = args.static_branch or args.fb or args.lb or args.lb_potential
+need_rtl_stat_tree = args.gem5_vs_rtl
 
 profiling_path = args.profiling_path
 gem5_src_path = args.gem5_src_path
@@ -78,14 +82,19 @@ def get_checkpoint_path_tree(simpoints, output=False, gem5=True):
 
 
 gem5_target = [
-    # 'cpus?\.branchPred\.(ftbEntriesWithDifferentStart)',
-    # 'cpus?\.branchPred\.(commitFsqEntryHasInsts::mean)',
-    # 'cpus?\.branchPred\.(staticBranchNum)',
-    # 'cpus?\.branchPred\.(staticBranchNumEverTaken)',
+    'cpus?\.branchPred\.(ftbEntriesWithDifferentStart)',
+    'cpus?\.branchPred\.(commitFsqEntryHasInsts::mean)',
+    'cpus?\.branchPred\.(staticBranchNum)',
+    'cpus?\.branchPred\.(staticBranchNumEverTaken)',
 ]
-if args.lb:
+if args.lb or args.lb_potential:
     gem5_target += [f'(commitLoopBufferEntryInstNum::{x})' for x in range(1,16+1)]
     gem5_target += [f'(commitLoopBufferDoubleEntryInstNum::{x})' for x in range(1,16+1)]
+    gem5_target += ['(l3.overallMisses)::cpu.inst']
+
+if args.lb_potential:
+    # need to collect warmup stats instead of simpoint stats
+    pass
 
 # print(gem5_target)
 rtl_target = [f'(commit_num_inst_{i})' for i in range(1, 16+1)]
@@ -108,8 +117,9 @@ def get_tree(simpoints, file_path, stat_file, gem5=True):
     return tree
 
 
-def get_name_of_run(file):
-    for part in file.split("/"):
+def get_name_of_run(file=None):
+    path = gem5_src_path if file is None else file
+    for part in path.split("/"):
         # print(part)
         if "Nanhu" in part:
             return part
@@ -205,33 +215,46 @@ def ave_fsq_entry_stat_by_workload(stat_tree, filename, inst_num=20*10**6, rtl_s
                 
     # print(res_dict.keys())
     res_dict = dict(sorted(res_dict.items(), key = lambda kv:(kv[1], kv[0]), reverse=True))
-    fig = plt.figure(figsize=(10,15))
+    fig = plt.figure(figsize=(10,10))
     # print(len(res_dict.keys()))
     plt.cla()
-    plt.bar(res_dict.keys(), res_dict.values())
+    def get_color(value):
+        if value > 7.2:
+            return "g"
+        elif value <= 7.2 and value > 6:
+            return "b"
+        elif value <= 6:
+            return "r"
+    colors_gem5 = [get_color(x) for x in res_dict.values()]
+    plt.bar(res_dict.keys(), res_dict.values(), color=colors_gem5)
     plt.xticks(rotation=90)
     plt.title("gem5_fb_size")
-    plt.savefig(osp.join(profiling_path, "gem5_"+filename))
+    plt.ylim((0,16))
+    try_save_fig(plt, osp.join(profiling_path, get_name_of_run(), "gem5_"+filename))
     
     if rtl_stat_tree:
         rtl_res_dict = dict(sorted(rtl_res_dict.items(), key = lambda kv:(kv[1], kv[0]), reverse=True))
-        fig = plt.figure(figsize=(10,15))
+        fig = plt.figure(figsize=(10,10))
         # print(len(res_dict.keys()))
+        
         plt.cla()
-        plt.bar(rtl_res_dict.keys(), rtl_res_dict.values())
+        colors_rtl = [get_color(x) for x in rtl_res_dict.values()]
+        plt.bar(rtl_res_dict.keys(), rtl_res_dict.values(), color=colors_rtl)
         plt.xticks(rotation=90)
         plt.title("rtl_fb_size")
-        plt.savefig(osp.join(profiling_path, "rtl_"+filename))
+        plt.ylim((0,16))
+        try_save_fig(plt, osp.join(profiling_path, get_name_of_run(), "rtl_"+filename))
         
         x = range(len(res_dict.keys()))
-        fig = plt.figure(figsize=(10,15))
+        fig = plt.figure(figsize=(10,10))
         plt.cla()
-        bar_gem5 = plt.bar([i-0.2 for i in x], res_dict.values(), width=0.4, label="gem5", color='r')
-        bar_rtl = plt.bar([i+0.2 for i in x], [rtl_res_dict[k] for k in res_dict.keys()], width=0.4, label="rtl", color='b')
+        bar_gem5 = plt.bar([i-0.2 for i in x], res_dict.values(), width=0.4, label="gem5", color=colors_gem5, hatch='//')
+        bar_rtl = plt.bar([i+0.2 for i in x], [rtl_res_dict[k] for k in res_dict.keys()], width=0.4, label="rtl", color=colors_rtl, hatch='\\\\')
         plt.xticks(x,res_dict.keys(),rotation=90)
         plt.title("gem5_vs_rtl_fb_size")
+        plt.ylim((0,16))
         plt.legend()
-        plt.savefig(osp.join(profiling_path, "gem5_vs_rtl_"+filename))
+        try_save_fig(plt, osp.join(profiling_path, get_name_of_run(), "gem5_vs_rtl_"+filename))
 
     return res_dict
 
@@ -259,16 +282,44 @@ def dyn_inst_from_loop_buffer_percent_by_workload(stat_tree, filename, inst_num=
     # rtl_res_dict = dict(sorted(rtl_res_dict.items(), key = lambda kv:(kv[1], kv[0]), reverse=True))
     
     x = range(len(res_dict.keys()))
-    fig = plt.figure(figsize=(10,15))
+    fig = plt.figure(figsize=(10,10))
     plt.cla()
     bar_gem5 = plt.bar([i-0.2 for i in x], res_dict.values(), width=0.4, label="insts_in_loop_buffer", color='r')
     bar_rtl = plt.bar([i+0.2 for i in x], [double_res_dict[k] for k in res_dict.keys()], width=0.4, label="double_insts_in_loop_buffer", color='b')
     plt.xticks(x,res_dict.keys(),rotation=90)
     plt.title("inst_percent_in_loop_buffer")
     plt.legend()
-    plt.savefig(osp.join(profiling_path, filename))
+    try_save_fig(plt, osp.join(profiling_path, get_name_of_run(), filename))
     
     return res_dict, double_res_dict
+
+def find_checkpoints_has_potential_for_lb(stat_tree, filename, inst_num=20*10**6):
+    res_dict = {}
+    l3_inst_miss_dict = {}
+    
+    def checkpoint_has_potential(df_row):
+        lb_inst_min_coverage = 0.05
+        l3_inst_miss_threshold = 50
+        if df_row['insts_in_lb'] < lb_inst_min_coverage and df_row['l3.overallMisses'] < l3_inst_miss_threshold:
+            return True
+    
+    for bmk in stat_tree:
+        for workload in stat_tree[bmk]:
+            res_dict[workload] = 0
+            df = stat_tree[bmk][workload]
+            df['insts_in_lb'] = 0
+            # df['double_insts_in_lb'] = 0
+            for i in range(1, 16+1):
+                df['insts_in_lb'] += df[f'commitLoopBufferEntryInstNum::{i}']
+                df['insts_in_lb'] += df[f'commitLoopBufferDoubleEntryInstNum::{i}']
+                # df['double_insts_in_lb'] += df[f'commitLoopBufferDoubleEntryInstNum::{i}'] * 2
+            df['insts_in_lb'] = df['insts_in_lb'] / inst_num
+            
+            for (i, row) in df.iterrows():
+                if checkpoint_has_potential(row):
+                    print(f"{workload}_{i} weight: {row['weight']}, lb coverage: {row['insts_in_lb']}, l3 miss: {row['l3.overallMisses']}")
+            # res_dict[workload] = inst_in_lb_sum / inst_num
+            
 
 
 def pointwise_data_extraction(file, col_pos=1, dataType='int', dict_key_pos=None):
@@ -409,7 +460,7 @@ if ((args.static_branch or args.fb) and args.phase) or args.top_mispred:
         tp.map(pointwise_get_and_copy_top_mispredict, top_mispredict_args_list)
 
 
-if args.static_branch or args.fb or args.lb:
+if need_gem5_stat_tree:
     tree_gem5 = get_tree(
         simpoints=simpoints,
         file_path=gem5_src_path,
@@ -417,7 +468,7 @@ if args.static_branch or args.fb or args.lb:
         gem5=True)
 # print(tree_gem5)
 
-if (args.gem5_vs_rtl):
+if need_rtl_stat_tree:
     tree_rtl = get_tree(
         simpoints=simpoints,
         file_path=rtl_src_path,
@@ -455,3 +506,5 @@ if args.fb:
 if args.lb:
     dyn_inst_from_loop_buffer_percent_by_workload(tree_gem5, "inst_percent_in_loop_buffer.png")
 
+if args.lb_potential:
+    find_checkpoints_has_potential_for_lb(tree_gem5, "checkpoints_has_potential_for_lb.txt")
