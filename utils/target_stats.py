@@ -39,6 +39,9 @@ branch_targets = [
     'cpus?\.branchPred\.(otherMiss)',
     'cpus?\.branchPred\.(returnMiss)',
     'cpus?\.branchPred\.(ftbMiss)',
+    'cpus?\.branchPred\.(btb.updateMiss)',
+    'cpus?\.branchPred\.(ubtb.updateMiss)',
+    'cpus?\.branchPred\.(uftb.updateMiss)',
     'cpus?\.(?:diewc\.exec_|commit\.)(branches)',
     'cpus?\.(ipc)',
     'cpus?\.committed(Insts)',
@@ -51,6 +54,41 @@ branch_targets = [
     # '(iqSquashedInstsIssued)',
     # '(commitSquashedInsts)',
 ]
+detailed_branch_targets=[
+    'cpus?\.branchPred\.(uftb\.updateMiss)',
+    'cpus?\.branchPred\.(uftb\.updateHit)',
+    'cpus?\.branchPred\.(uftb\.condHits)',
+    'cpus?\.branchPred\.(uftb\.condHitTakens)',
+    'cpus?\.branchPred\.(uftb\.condHitNotTakens)',
+    'cpus?\.branchPred\.(uftb\.condMisses)',
+    'cpus?\.branchPred\.(uftb\.condMissTakens)',
+    'cpus?\.branchPred\.(uftb\.condMissNotTakens)',
+    'cpus?\.branchPred\.(uftb\.condPredCorrect)',
+    'cpus?\.branchPred\.(uftb\.condPredWrong)',
+    'cpus?\.branchPred\.(uftb\.indirectHits)',
+    'cpus?\.branchPred\.(uftb\.indirectMisses)',
+    'cpus?\.branchPred\.(uftb\.indirectPredCorrect)',
+    'cpus?\.branchPred\.(uftb\.indirectPredWrong)',
+    'cpus?\.branchPred\.(uftb\.callHits)',
+    'cpus?\.branchPred\.(uftb\.callMisses)',
+    'cpus?\.branchPred\.(uftb\.returnHits)',
+    'cpus?\.branchPred\.(uftb\.returnMisses)',
+    'cpus?\.branchPred\.(ftb\.condHits)',
+    'cpus?\.branchPred\.(ftb\.condHitTakens)',
+    'cpus?\.branchPred\.(ftb\.condHitNotTakens)',
+    'cpus?\.branchPred\.(ftb\.condMisses)',
+    'cpus?\.branchPred\.(ftb\.condMissTakens)',
+    'cpus?\.branchPred\.(ftb\.condMissNotTakens)',
+    'cpus?\.branchPred\.(ftb\.indirectHits)',
+    'cpus?\.branchPred\.(ftb\.indirectMisses)',
+    'cpus?\.branchPred\.(ftb\.indirectPredCorrect)',
+    'cpus?\.branchPred\.(ftb\.indirectPredWrong)',
+    'cpus?\.branchPred\.(ftb\.callHits)',
+    'cpus?\.branchPred\.(ftb\.callMisses)',
+    'cpus?\.branchPred\.(ftb\.returnHits)',
+    'cpus?\.branchPred\.(ftb\.returnMisses)',
+]
+
 fanout_targets = [
         'diewc\.(largeFanoutInsts)',
         'diewc\.(falseNegativeLF)',
@@ -196,7 +234,7 @@ xs_ipc_target = [
 ]
 
 xs_branch_targets = [
-    # '(BpInstr)',
+    '(BpInstr)',
     '(BpBInstr)',
     # '(BpRight)',
     '(BpWrong)',
@@ -213,7 +251,7 @@ xs_branch_targets = [
 
     '(sc_mispred_but_tage_correct)',
     '(sc_correct_and_tage_wrong)',
-    ' (ftb_commit_misses)',
+    '\s(ftb_commit_misses)',
     # '(btb_commit_misses)',
     ' (ftb_update_req)',
     

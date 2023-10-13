@@ -51,8 +51,10 @@ def print_score(df: pd.DataFrame, clock_rate, name):
     # print('Excluded because of low coverage:', list(excluded.index))
 
 def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, stat_file,
-        clock_rate, min_coverage=0.0, blacklist=[], whitelist=[], merge_benckmark=False):
+        clock_rate, min_coverage=0.0, blacklist=[], whitelist=[], merge_benckmark=False, detailed=False):
     target = eval(f't.{prefix}branch_targets')
+    if (detailed):
+        target += eval(f't.detailed_branch_targets')
     workload_dict = {}
     bmk_stat = {}
 
@@ -91,6 +93,7 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
             total_misp = 0
             total_misp_b = 0
             total_miss_ftb = 0
+            total_miss_uftb = 0
             total_miss_btb = 0
             total_update_ftb = 0
             total_misp_b_ubtb = 0
@@ -105,6 +108,41 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
             total_cycle = 0
             total_frontend_bubble = 0
             total_s2_redirect = 0
+            
+            # detailed stats for gem5
+            total_uftb_updateMiss = 0
+            total_uftb_updateHit = 0
+            total_uftb_condHits = 0
+            total_uftb_condHitTakens = 0
+            total_uftb_condHitNotTakens = 0
+            total_uftb_condMisses = 0
+            total_uftb_condMissTakens = 0
+            total_uftb_condMissNotTakens = 0
+            total_uftb_condPredCorrect = 0
+            total_uftb_condPredWrong = 0
+            total_uftb_indirectHits = 0
+            total_uftb_indirectMisses = 0
+            total_uftb_indirectPredCorrect = 0
+            total_uftb_indirectPredWrong = 0
+            total_uftb_callHits = 0
+            total_uftb_callMisses = 0
+            total_uftb_returnHits = 0
+            total_uftb_returnMisses = 0
+            total_ftb_condHits = 0
+            total_ftb_condHitTakens = 0
+            total_ftb_condHitNotTakens = 0
+            total_ftb_condMisses = 0
+            total_ftb_condMissTakens = 0
+            total_ftb_condMissNotTakens = 0
+            total_ftb_indirectHits = 0
+            total_ftb_indirectMisses = 0
+            total_ftb_indirectPredCorrect = 0
+            total_ftb_indirectPredWrong = 0
+            total_ftb_callHits = 0
+            total_ftb_callMisses = 0
+            total_ftb_returnHits = 0
+            total_ftb_returnMisses = 0
+            
             for workload, df in tree[bmk].items():
                 if (workload in blacklist):
                     continue
@@ -117,7 +155,7 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
                 # print(df)
                 cpi, weight = u.weighted_cpi(df)
                 if prefix == '':
-                    (total_mpki, b_mpki, i_mpki, r_mpki, j_mpki, ftb_mpki, bpki, b_misrate) = u.weighted_mpkis(df)
+                    (total_mpki, b_mpki, i_mpki, r_mpki, j_mpki, ftb_mpki, uftb_mpki, bpki, b_misrate) = u.weighted_mpkis(df)
                 else:
                     assert prefix == 'xs_'
                     ([total_mpki, b_mpki, j_mpki, i_mpki, c_mpki, r_mpki, ftb_mpki, ftb_upki, frontend_bubble_pki, s2_redirect_pki], bpki, b_misrate, sc_rdc_mpki) = u.xs_weighted_mpkis(df)
@@ -144,6 +182,9 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
                     workload_dict[conf][workload]['MPKI_RDC_SC'] = sc_rdc_mpki
                     workload_dict[conf][workload]['FrontendBubble'] = frontend_bubble_pki
                     workload_dict[conf][workload]['s2_redirect'] = s2_redirect_pki
+                else:
+                    workload_dict[conf][workload]['MPKI_UFTB'] = uftb_mpki
+                    
                 workload_dict[conf][workload]['Coverage'] = weight
 
                 # merge multiple sub-items of a benchmark
@@ -173,6 +214,8 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
                         total_frontend_bubble += insts*frontend_bubble_pki/1000
                         total_s2_redirect += insts*s2_redirect_pki/1000
                         total_rdc_sc += insts*sc_rdc_mpki/1000
+                    else:
+                        total_miss_uftb += insts*uftb_mpki/1000
                     coverage += weight
                     count += 1
             # print(1111)
@@ -194,6 +237,7 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
                 bmk_stat[conf][bmk]['mpki'] = 1000 * total_misp / total_inst
                 bmk_stat[conf][bmk]['mpki_j'] = 1000 * total_misp_j / total_inst
                 bmk_stat[conf][bmk]['mpki_ftb'] = 1000 * total_miss_ftb / total_inst
+                bmk_stat[conf][bmk]['bpki'] = 1000 * total_branches / total_inst
                 # bmk_stat[conf][bmk]['misrate_ftb'] = total_miss_ftb / total_update_ftb * 100
 
                 if prefix == 'xs_':
@@ -206,6 +250,8 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
                     bmk_stat[conf][bmk]['s2_redirect_pki'] = 1000 * total_s2_redirect / total_inst
                     # bmk_stat[conf][bmk]['mpki_btb'] = 1000 * total_miss_btb / total_inst
                     bmk_stat[conf][bmk]['mpki_rdc_sc'] = 1000 * total_rdc_sc / total_inst
+                else:
+                    bmk_stat[conf][bmk]['mpki_uftb'] = 1000 * total_miss_uftb / total_inst
     int_list = [
         "perlbench", "bzip2", "gcc", "mcf", 
         "gobmk", "hmmer", "sjeng", "libquantum",
@@ -235,10 +281,10 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
         # # print(df.sort_index())
         # int_df.to_csv('spec06_int_'+conf+'.csv')
         # fp_df.to_csv('spec06_fp_'+conf+'.csv')
-        # int_df = df.loc[int_list]
-        # fp_df = df.loc[fp_list]
-        # print_score(int_df, clock_rate, 'INT')
-        # print_score(fp_df, clock_rate, 'FP')
+        int_df = df.loc[int_list]
+        fp_df = df.loc[fp_list]
+        print_score(int_df, clock_rate, 'INT')
+        print_score(fp_df, clock_rate, 'FP')
         df.to_csv('spec06_total_'+conf+'.csv')
         print_score(df, clock_rate, 'TOTAL')
         if len(list(excluded.index)):
@@ -258,7 +304,7 @@ def compute_weighted_mpki(ver, confs, base, simpoints, prefix, insts_file_fmt, s
         print(dfx)
 
 
-def gem5_spec2006():
+def gem5_spec2006(detailed):
     ver = '06'
     confs = {
             # 'O1': '/home51/zyy/expri_results/omegaflow_spec17/OmegaH1S1G1Config',
@@ -277,19 +323,49 @@ def gem5_spec2006():
             # 'new_u_algorithm': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuNoL3-02624fcac',
             # 'new_base': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuNoL3-341ad0d23',
             # 'thr_shift_10b': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuNoL3-59005177e',
-            'nanhu-ftb': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-always-taken',
-            'nanhu-ftb-no-always-taken': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-no-always-taken',
-            'nanhu-ftb-uftb-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-uftb-fixed',
-            'nanhu-ftb-uncond-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-uncond-slot-fixed',
-            'nanhu-ftb-all-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-all-fixed',
-            'nanhu-ftb-false-hit-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-false-hit-fixed',
-            'nanhu-ftb-br-slot-shuffled': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-br-slot-shuffled',
-            'nanhu-fetchwidth-fetchqueue-size': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-fetchwidth-fetchqueue-size',
-            'nanhu-with-ittage': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-with-ittage',
-            'nanhu-with-db-all': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-with-db-all',
-            'nanhu-tage-alt-tag': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-tage-alt-tag',
-            'nanhu-ittage': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-ittage',
             
+            # 'nanhu-ftb': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-always-taken',
+            # 'nanhu-ftb-no-always-taken': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-no-always-taken',
+            # 'nanhu-ftb-uftb-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-uftb-fixed',
+            # 'nanhu-ftb-uncond-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-uncond-slot-fixed',
+            # 'nanhu-ftb-all-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-all-fixed',
+            # 'nanhu-ftb-false-hit-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-false-hit-fixed',
+            # 'nanhu-ftb-br-slot-shuffled': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-br-slot-shuffled',
+            # 'nanhu-fetchwidth-fetchqueue-size': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-fetchwidth-fetchqueue-size',
+            # 'nanhu-with-ittage': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-with-ittage',
+            # 'nanhu-with-db-all': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-with-db-all',
+            # 'nanhu-tage-alt-tag': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-tage-alt-tag',
+            # 'nanhu-ittage': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-ittage',
+            # 'nanhu-ittage-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-ittage-fixed',
+            # 'nanhu-ittage-alt-tag': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-ittage-alt-tag',
+            # 'nanhu-ras-fix': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-ras-fix',
+            # 'nanhu-backend-base': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-backend-base',
+            # 'nanhu-l3-base': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-l3-base',
+            # 'nanhu-dramsim-base': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-dramsim-base',
+            # 'nanhu-dramsim-ras-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-dramsim-ras-fixed',
+            
+            # 'nanhu-bp-lat-baseline': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-bp-lat-baseline',
+            # 'nanhu-bp-lat-ftb-tage-3cycle': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-bp-lat-ftb-tage-3cycle',
+            # 'nanhu-ubtb-has-ctr': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-ubtb-has-ctr',
+            # 'nanhu-bp-lat-tage-ftb-3cycle-ubtb-ctr': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nanhu-bp-lat-tage-ftb-3cycle-ubtb-ctr',
+            
+            # 'nanhu-loop-baseline': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSim-ccbb0d96c7-loop-baseline',
+            # 'nanhu-loop-lp3': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSimWithLP-9add7eb62c',
+            # 'nanhu-loop-lp-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSimWithLP-e70bcc88d0-fixed',
+            # 'nanhu-loop-lb-with-lp-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSimWithLPLB-e70bcc88d0',
+            # 'nanhu-loop-lb': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSimWithLPLB-5e3d04105f',
+            # 'nanhu-loop-lp': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSimWithLP-9abf6ba0e9',
+            # 'nanhu-loop-lp2': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSimWithLP-0c7925513a',
+            # 'nanhu-loop-lb': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSimWithLPLB-773f3687f3',
+            # 'nanhu-loop-lb-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSimWithLPLB-02491947a7',
+            # 'nanhu-ja-baseline': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSim-007a6899be',
+            # 'nanhu-ja': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSimWithJA-007a6899be',
+            # 'nanhu-ja-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSimWithJA-66f78ebf0e',
+            # 'nanhu-lb-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSimWithLPLB-b775858da5',
+            # 'nanhu-baseline': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSim-7ac3c64cef-no-lp-baseline',
+            # 'nanhu-lp-baseline': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSimWithLP-7ac3c64cef-previous-lp',
+            # 'nanhu-lp-tag-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSimWithLP-8f90c37207-fixed',
+            # 'nanhu-tage-8-table': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/tage-8-table',
             # 'GEM5_Tour': '/home51/glr/expri_results/SPEC06/FullWindowO3Config_2021-10-12_21:31:41',
             # 'GEM5_BiMode': '/home51/glr/expri_results/SPEC06/FullWindowO3Config_2021-10-12_21:37:50',
             # 'GEM5hist128': '/home51/glr/expri_results/SPEC06/FullWindowO3Config_2021-06-23_14:08:12',
@@ -297,25 +373,51 @@ def gem5_spec2006():
             # 'GEM5hist512': '/home51/glr/expri_results/SPEC06/FullWindowO3Config_2021-06-23_14:55:46',
             # 'F2': '/home51/zyy/expri_results/omegaflow_spec17/FFG2CL0CG1Config',
             # 'FullO3': '/home51/zyy/expri_results/omegaflow_spec17/FullWindowO3Config'
+            
+            # 'wkf-gcb': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/nocmc_old_1.0'
+            
+            # '7-6-baseline': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSim-7f0b68f69f-7-6-baseline',
+            # '7-6-lp': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSimWithLP-7f0b68f69f-7-6-lp',
+            # '7-6-lp-lb': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSimWithLPLB-7f0b68f69f-7-6-lp-lb',
+            # '7-6-ja': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSimWithJA-7f0b68f69f-7-6-ja',
+            # '7-6-lp-lb-ja': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSimWithLPLBJA-7f0b68f69f-7-6-lp-lb-ja',
+            # 'btb-tage': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSim-7e5e08b89a-btb-tage',
+            # 'btb-tage-ittage': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSim-780f361086-btb-tage-ittage',
+            # 'btb-4k-tage-ittage': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSim-780f361086-btb-4k-tage-ittage',
+            # 'btb-4k-tage-ittage-ubtb-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSim-780f361086-btb-4k-tage-ittage-ubtb-fixed',
+            # 'btb-4k-tage-ittage-btb-try-fix': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSim-780f361086-btb-4k-tage-ittage-btb-try-fix',
+            # 'btb-8-29': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSim-780f361086-8-29-btb',
+            # 'btb-fixed': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSim-803f288010-btb-2k-8w-fixed',
+            # '9-14-baseline': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSim-ea456bc2b2-xs-dev-9-14',
+            # 'huge-uftb': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSim-2f214d7c41-huge-uftb',
+            # 'huge-uftb-ahead-pipelined': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSim-d1aba4d281-huge-uftb-ahead-pipelined',
+            # 'huge-uftb-ahead-pipelined-with-recover': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSim-4287f4723d-huge-uftb-ahead-pipeline-with-recover',
+            # 'huge-uftb-ahead-pipelined-only-squash': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSim-4287f4723d-huge-uftb-ahead-pipeline-only-squash',
+            'two-taken-baseline': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSim-6b275229d7-two-taken-baseline',
+            'two-taken': '/nfs/home/goulingrui/expri_results/gem5/frontend_06/NanhuDRAMSim-6b275229d7-two-taken',
             }
 
     compute_weighted_mpki(
             ver=ver,
             confs=confs,
             # base='new_u_algorithm',
-            base='nanhu-ftb',
+            # base='nanhu-baseline',
+            base='two-taken-baseline',
+            # simpoints=f'/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gcb_o2_20m/json/simpoint_summary.json',
             simpoints=f'/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gc_o2_20m/simpoint_summary.json',
             prefix = '',
             stat_file='m5out/stats.txt',
             insts_file_fmt =
             # '/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gc_o2_50m/profiling/{}/nemu_out.txt',
             '/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gc_o2_20m/logs/profiling/{}.log',
+            # '/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gcb_o2_20m/logs/profiling/{}.log',
             # '/bigdata/zzf/spec_cpt/logs/profiling/{}.log',
-            clock_rate = 4 * 10**9,
+            clock_rate = 2 * 10**9,
             min_coverage = 0.1,
             # blacklist = ['gamess'],
             # whitelist = ['mcf', 'astar', 'gobmk', 'gcc', 'sjeng', 'bzip2'],
             merge_benckmark=True,
+            detailed=detailed
             )
 
 
@@ -338,7 +440,7 @@ def xiangshan_spec2006(stat_file='main_err.txt'):
             # 'XiangShan_fauftb': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasksConfig_2022-09-14_emu-faubtb-perf-16t',
             # 'XiangShan_fauftb_new_mechanism': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasksConfig_2022-09-14_emu-faubtb-perf-new-mechanism-16t',
             # 'XiangShan_nanhu': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasks_12_05_2022',
-            'XiangShan_nanhu_gcb': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasks_12_03_2022',
+            # 'XiangShan_nanhu_gcb': '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/SPEC06_EmuTasks_12_03_2022',
             # 'XiangShan_22_01_07': '/nfs/home/goulingrui/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_01_07',
             # 'XiangShan_22_03_19': '/nfs/home/goulingrui/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_03_19',
             # 'XiangShan_21_12_12': '/nfs/home/goulingrui/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_12_12',
@@ -350,7 +452,9 @@ def xiangshan_spec2006(stat_file='main_err.txt'):
             # 'XiangShan_yqh': '/home/glr/SPEC06_EmuTasksConfig-04-27-2021',
             # 'no-ium': '/home53/glr/spec_output/xs_simpoint_batch/SPEC06_EmuTasksConfig_hist64_2021-10-06',
             # 'ium': '/home53/glr/spec_output/xs_simpoint_batch/SPEC06_EmuTasksConfig_ium_2021-10-10',
-            
+            # 'XiangShan_master_0519' : '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/master-base-20230519',
+            # 'XiangShan_tage_0519' : '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/master-tage-20230519',
+            'XiangShan_gcb_0517' : '/nfs/home/goulingrui/expri_results/xs_simpoint_batch/master-topdown-gcb-20230517',
             # 'XiangShan_master_10-28': '/home53/glr/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_10_28_2021_cov100',
             # 'XiangShan_master_10-22': '/home53/glr/spec_output/xs_simpoint_batch/SPEC06_EmuTasks_10_22_2021_cov100',
             }
@@ -386,7 +490,8 @@ def xiangshan_spec2006(stat_file='main_err.txt'):
             # base='XiangShan_22_06_10',
             # base='XiangShan_22_08_21',
             # base='XiangShan_nanhu',
-            base='XiangShan_nanhu_gcb',
+            # base='XiangShan_nanhu_gcb',
+            base='XiangShan_gcb_0517',
             # base='lzs_run',
             # simpoints=f'/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gc_o2_20m/simpoint_summary.json',
             # simpoints=f'/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gc_o2_50m/simpoint_summary.json',
@@ -421,10 +526,14 @@ if __name__ == '__main__':
     parser.add_argument('--simpoint-json', action='store', type=str)
     parser.add_argument('--inst-profile', action='store', type=str)
     parser.add_argument('--spec-result', action='store', type=str)
+    parser.add_argument('--detailed', action='store_true')
     
     args = parser.parse_args()
+    if (args.detailed):
+        assert(args.mode == 'gem5')
+        print("detailed")
     if (args.mode == 'gem5'):
-        gem5_spec2006()
+        gem5_spec2006(args.detailed)
     else:
         if (args.stat_file):
             xiangshan_spec2006(args.stat_file)

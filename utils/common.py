@@ -259,10 +259,12 @@ def get_raw_stats_around(stat_file: str, insts: int=200*(10**6),
                             else:
                                 return old_buff
                         else:
+                            # return buff
                             old_insts = new_insts
                             old_cycles = new_cylces
                             old_buff = deepcopy(buff)
                             buff.clear()
+                            
 
                 elif p_insts.search(line) is not None:
                     new_insts = int(p_insts.search(line).group(1))
@@ -321,12 +323,14 @@ def xs_get_stats(stat_file: str, targets: list,
         meta_pattern = re.compile('.*\((\w.+)\).*')
         for t in targets:
             meta = meta_pattern.search(t).group(1)
+            # print(meta)
             # patterns[meta] = re.compile(t+'\s+(\d+\.?\d*)\s+')
-            patterns[meta] = re.compile('.+' + meta + ',\s+(\d+)')
+            patterns[meta] = re.compile('.+\s' + meta + ',\s+(\d+)')
+            # print(patterns[meta])
     else:
         for t in targets:
             # patterns[t] = re.compile(t+'\s+(\d+\.?\d*)\s+')
-            patterns[t] = re.compile('.*?' + meta + ',\s*(\d+)')
+            patterns[t] = re.compile('.*?' + t + ',\s*(\d+)')
 
     # print(patterns)
     stats = {}
@@ -341,7 +345,7 @@ def xs_get_stats(stat_file: str, targets: list,
                     if not m is None:
                         # if str(k) == 'ftb_commit_misses':
                         #     print(line, str(k))
-                        # print('found pattern '+ str(k) + ' in line '+ line)
+                        #     print('found pattern '+ str(k) + ' in line '+ line)
                         if re_targets:
                             stats[k] = to_num(m.group(1))
                         else:

@@ -82,7 +82,7 @@ def get_checkpoint_path_tree(simpoints, output=False, gem5=True):
 
 
 gem5_target = [
-    'cpus?\.branchPred\.(ftbEntriesWithDifferentStart)',
+    'cpus?\.branchPred\.(btbEntriesWithDifferentStart)',
     'cpus?\.branchPred\.(commitFsqEntryHasInsts::mean)',
     'cpus?\.branchPred\.(staticBranchNum)',
     'cpus?\.branchPred\.(staticBranchNumEverTaken)',
@@ -182,6 +182,7 @@ def taken_static_branch_num_by_workload(stat_tree):
 
 
 def ave_fsq_entry_stat_by_workload(stat_tree, filename, inst_num=20*10**6, rtl_stat_tree=None):
+    print("ave_fsq_entry_stat_by_workload")
     res_dict = {}
     rtl_res_dict = {}
     if (rtl_stat_tree):
@@ -359,8 +360,8 @@ def pointwise_all_static_branch_and_ftb_entry_by_phase(files):
         plt.cla()
         plt.xlabel("phase")
         plt.ylabel("num")
-        plt.plot(static_entry_nums, color='blue', label='ftb entry')
         plt.plot(static_branch_nums, color='green', label='static branch')
+        plt.plot(static_entry_nums, color='blue', label='ftb entry')
         plt.plot(taken_static_branch_nums, color='red', label='taken static branch')
         plt.legend(loc='best')
         # plt.show()
@@ -500,6 +501,7 @@ if args.static_branch:
     plt.ylim(1, 3)
     try_save_fig(plt, osp.join(profiling_path, "ftb_entry_taken_static_branch_ratio.png"))
 
+print(args.fb)
 if args.fb:
     ave_fsq_entry_stat_by_workload(tree_gem5, "fsq_entry_len.png", rtl_stat_tree=(tree_rtl if args.gem5_vs_rtl else None))
 

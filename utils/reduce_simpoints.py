@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 import json
 
-input = '/bigdata/zzf/spec_cpt/simpoint_summary.json'
-max_point_per_workload = 20
+input = '/nfs-nvme/home/share/checkpoints_profiles/spec06_rv64gcb_o2_20m/json/simpoint_summary.json'
+max_point_per_workload = 0
 target_coverage = 0.8
 output = f"./simpoint_coverage{target_coverage}_test.json"
 

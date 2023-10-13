@@ -37,7 +37,7 @@ def stats_factory(targets, keys, prefix=''):
                 try:
                     res[k] = stats[k]
                 except:
-                    if (k == 'otherMiss' or k == 'returnMiss' or k == 'uncondMiss' or k == 'ftbMiss'):
+                    if (k == 'otherMiss' or k == 'returnMiss' or k == 'uncondMiss' or k == 'ftbMiss' or 'updateMiss' in k):
                         print(k, "is none, assigning 0")
                         res[k] = 0
                     else:
@@ -71,7 +71,7 @@ def get_stat_of_point(args):
     stat_dir = osp.join(path, workload, point, stat_file)
     stats = func()(stat_dir)
     if stats is not None:
-        print(workload, point, 'extracted')
+        # print(workload, point, 'extracted')
         # if 'ipc' in stats.keys():
         dct = [weight] + [s for s in stats.values()]
         keys = list(stats.keys())
@@ -99,6 +99,7 @@ def glob_weighted_stats(path: str, get_stats_func, white_list, filtered=True,
         arg_list = []
         workload_list = []
         for workload in os.listdir(path):
+            
             if len(white_list):
                 is_in = False
                 for w in white_list:
@@ -220,6 +221,11 @@ def weighted_mpkis(df: pd.DataFrame):
     r_mpki = 1000 * np.true_divide(df['returnMiss'], df['Insts'])
     total_mpki = 1000 * np.true_divide(df['condMiss']+df['uncondMiss'], df['Insts'])
     ftb_mpki = 1000 * np.true_divide(df['ftbMiss'], df['Insts'])
+    if (df['ftbMiss'] == 0).all():
+        ftb_mpki = 1000 * np.true_divide(df['btb.updateMiss'], df['Insts'])
+    uftb_mpki = 1000 * np.true_divide(df['uftb.updateMiss'], df['Insts'])
+    if (df['uftb.updateMiss'] == 0).all():
+        uftb_mpki = 1000 * np.true_divide(df['ubtb.updateMiss'], df['Insts'])
     bpki = 1000 * np.true_divide(df['branches'], df['Insts'])
     weighted_mpki_total = np.dot(df['weight'], total_mpki) / np.sum(df['weight'])
     weighted_mpki_b = np.dot(df['weight'], b_mpki) / np.sum(df['weight'])
@@ -227,9 +233,10 @@ def weighted_mpkis(df: pd.DataFrame):
     weighted_mpki_j = np.dot(df['weight'], j_mpki) / np.sum(df['weight'])
     weighted_mpki_r = np.dot(df['weight'], r_mpki) / np.sum(df['weight'])
     weighted_mpki_ftb = np.dot(df['weight'], ftb_mpki) / np.sum(df['weight'])
+    weighted_mpki_uftb = np.dot(df['weight'], uftb_mpki) / np.sum(df['weight'])
     weighted_bpki = np.dot(df['weight'], bpki) / np.sum(df['weight'])
     weighted_b_misrate = 100 * weighted_mpki_b / weighted_bpki
-    return (weighted_mpki_total, weighted_mpki_b, weighted_mpki_i, weighted_mpki_r, weighted_mpki_j, weighted_mpki_ftb, weighted_bpki, weighted_b_misrate)
+    return (weighted_mpki_total, weighted_mpki_b, weighted_mpki_i, weighted_mpki_r, weighted_mpki_j, weighted_mpki_ftb, weighted_mpki_uftb, weighted_bpki, weighted_b_misrate)
 
 def xs_weighted_mpkis(df: pd.DataFrame,
     targets=[
@@ -254,11 +261,11 @@ def xs_weighted_mpkis(df: pd.DataFrame,
     assert 'sc_correct_and_tage_wrong' in df.columns
     assert 'BpBInstr' in df.columns
     mpkis = [1000 * np.true_divide(df[t], df['commitInstr']) for t in targets]
-    bpki = 1000 * np.true_divide(df['BpBInstr'], df['commitInstr'])
+    bpki = 1000 * np.true_divide(df['BpInstr'], df['commitInstr'])
     sc_rdc_mpki = 1000 * np.true_divide(df['sc_correct_and_tage_wrong']-df['sc_mispred_but_tage_correct'], df['commitInstr'])
     weighted_mpkis = [np.dot(df['weight'], m) / np.sum(df['weight']) for m in mpkis]
     weighted_bpki = np.dot(df['weight'], bpki) / np.sum(df['weight'])
-    weighted_b_misrate = 100 * weighted_mpkis[1] / weighted_bpki
+    weighted_b_misrate = 100 * weighted_mpkis[0] / weighted_bpki
     weighted_sc_rdc_mpki = np.dot(df['weight'], sc_rdc_mpki) / np.sum(df['weight'])
     return (weighted_mpkis, weighted_bpki, weighted_b_misrate, weighted_sc_rdc_mpki)
 
