@@ -485,6 +485,7 @@ def branch_analysis(db_connect, db_path):
     cursor = db_connect.cursor()
     # per branch taken rate
     if not check_table_existence(cursor, 'taken_percent'):
+        print("aaaaaa")
         cursor.execute("""
         CREATE TABLE taken_percent AS
         WITH CTE AS (
@@ -508,48 +509,293 @@ def branch_analysis(db_connect, db_path):
         FROM
             CTE
         """)
+        
+        # calculate each branch's offset bits needed and write to table
+        # offset bits are defined to be the minimum bits needed to represent the distance between controlPC and jump_target
+
+        cursor.execute("ALTER TABLE taken_percent ADD COLUMN offset_bits INTEGER")
+        cursor.execute("""
+            UPDATE taken_percent
+            SET offset_bits = CASE
+                WHEN jump_target IS NULL THEN 0
+                ELSE CAST(CEIL(LOG2(ABS(jump_target - controlPC) + 1)) AS INTEGER)
+            END;""")
+        
+
     
     cursor.execute("SELECT COUNT(*) FROM taken_percent;")
-    print("total static conditional branches:", cursor.fetchone()[0])
-    cursor.execute("SELECT COUNT(*) FROM taken_percent WHERE taken_percentage == 100.0;")
-    print("always taken:", cursor.fetchone()[0])
+    total_static_cond = cursor.fetchone()[0]
+    print("total static conditional branches:", total_static_cond)
+    
+    # save to csv
+    cursor.execute("SELECT * FROM taken_percent;")
+    all_branches = cursor.fetchall()
+    df = pd.DataFrame(all_branches, columns=['controlPC', 'num', 'taken_percentage', 'jump_target', 'taken_num', 'offset_bits'])
+    # print first 10 rows
+    print(df.head(10))
+    # set controlPC and jump_target to hex
+    df['controlPC'] = df['controlPC'].apply(lambda x: format(x, 'x'))
+    # jump_target is float, convert jump_target to int then hex, if jump_target is null, set it to 0
+    df['jump_target'] = df['jump_target'].fillna(0)
+    df['jump_target'] = df['jump_target'].apply(lambda x: format(int(x), 'x'))
+    df.to_csv(os.path.join(get_dir(db_path), res_dir_name, 'branch_taken_percentage.csv'), index=False)
+    
+    
+    cursor.execute("SELECT COUNT(*), SUM(num) FROM taken_percent WHERE taken_percentage == 100.0;")
+    [always_taken_static, always_taken_dynamic] = cursor.fetchone()
+    print(f"always taken static: {always_taken_static}, dynamic {always_taken_dynamic}")
+    if not always_taken_dynamic:
+        always_taken_dynamic = 0
+    static_list = [always_taken_static]
+    dynamic_list = [always_taken_dynamic]
+    name_list = ['always taken']
+    
     # cursor.execute("SELECT * FROM taken_percent WHERE taken_percentage == 100.0;")
     # print("always taken branches:")
+    
+    ################### always taken detailed #######################
     for num in range(10):
-        cursor.execute(f"SELECT COUNT(*) FROM taken_percent WHERE taken_percentage == 100.0 AND num == {num};")
-        print(f"always taken branches occurring {num+1} times:", cursor.fetchone()[0])
-    cursor.execute("SELECT COUNT(*) FROM taken_percent WHERE taken_percentage == 100.0 AND num > 10;")
-    print("always taken branches occurring more than 10 times:", cursor.fetchone()[0])
-    cursor.execute("SELECT COUNT(*) FROM taken_percent WHERE taken_percentage == 0.0;")
-    print("never taken:", cursor.fetchone()[0])
-    # cursor.execute("SELECT * FROM taken_percent WHERE taken_percentage == 0.0;")
-    for num in range(10):
-        cursor.execute(f"SELECT COUNT(*) FROM taken_percent WHERE taken_percentage == 0.0 AND num == {num};")
-        print(f"never taken branches occurring {num+1} times:", cursor.fetchone()[0])
-    cursor.execute("SELECT COUNT(*) FROM taken_percent WHERE taken_percentage == 0.0 AND num > 10;")
-    print("always not taken branches occurring more than 10 times:", cursor.fetchone()[0])
+        cursor.execute(f"SELECT COUNT(*), SUM(num) FROM taken_percent WHERE taken_percentage == 100.0 AND num == {num};")
+        [st, dy] = cursor.fetchone()
+        print(f"always taken branches occurring {num+1} times static {st}, dynamic {dy}:")
+    cursor.execute("SELECT COUNT(*), SUM(num) FROM taken_percent WHERE taken_percentage == 100.0 AND num > 10;")
+    [st, dy] = cursor.fetchone()
+    print(f"always taken branches occurring more than 10 times static {st}, dynamic {dy}")
+    
+    
+    ################ partially taken detailed #######################
     cursor.execute("SELECT COUNT(*) FROM taken_percent WHERE taken_percentage != 0.0 AND taken_percentage != 100.0;")
     print("partially taken:", cursor.fetchone()[0])
     cursor.execute("SELECT COUNT(*) FROM taken_percent WHERE taken_percentage > 90.0 AND taken_percentage != 100.0;")
     print("partially taken > 90%:", cursor.fetchone()[0])
-    cursor.execute("SELECT COUNT(*) FROM taken_percent WHERE taken_percentage > 80.0 AND taken_percentage <= 90.0;")
-    print("partially taken (80%, 90%]:", cursor.fetchone()[0])
-    cursor.execute("SELECT COUNT(*) FROM taken_percent WHERE taken_percentage > 70.0 AND taken_percentage <= 80.0;")
-    print("partially taken (70%, 80%]:", cursor.fetchone()[0])
-    cursor.execute("SELECT COUNT(*) FROM taken_percent WHERE taken_percentage > 60.0 AND taken_percentage <= 70.0;")
-    print("partially taken (60%, 70%]:", cursor.fetchone()[0])
-    cursor.execute("SELECT COUNT(*) FROM taken_percent WHERE taken_percentage > 50.0 AND taken_percentage <= 60.0;")
-    print("partially taken (50%, 60%]:", cursor.fetchone()[0])
-    cursor.execute("SELECT COUNT(*) FROM taken_percent WHERE taken_percentage > 40.0 AND taken_percentage <= 50.0;")
-    print("partially taken (40%, 50%]:", cursor.fetchone()[0])
-    cursor.execute("SELECT COUNT(*) FROM taken_percent WHERE taken_percentage > 30.0 AND taken_percentage <= 40.0;")
-    print("partially taken (30%, 40%]:", cursor.fetchone()[0])
-    cursor.execute("SELECT COUNT(*) FROM taken_percent WHERE taken_percentage > 20.0 AND taken_percentage <= 30.0;")
-    print("partially taken (20%, 30%]:", cursor.fetchone()[0])
-    cursor.execute("SELECT COUNT(*) FROM taken_percent WHERE taken_percentage > 10.0 AND taken_percentage <= 20.0;")
-    print("partially taken (10%, 20%]:", cursor.fetchone()[0])
-    cursor.execute("SELECT COUNT(*) FROM taken_percent WHERE taken_percentage < 10.0 AND taken_percentage != 0.0;")
-    print("partially taken < 10%:", cursor.fetchone()[0])
+    for i in range(10):
+        cursor.execute("SELECT COUNT(*), SUM(num) FROM taken_percent WHERE taken_percentage > (10.0 * ?) AND taken_percentage <= (10.0 * ?) AND taken_percentage != 100.0;" , (9-i, 10-i))
+        [st, dy] = cursor.fetchone()
+        if not dy:
+            dy = 0
+        static_list.append(st)
+        dynamic_list.append(dy)
+        name_list.append(f"{10*(9-i)}%~{10*(10-i)}%")
+        print(f"partially taken ({10*(9-i)}%, {10*(10-i)}%{']' if i != 0 else ')'}:", st, ", occurrence: ", dy)
+    
+    ################# never taken detailed #######################
+    cursor.execute("SELECT COUNT(*), SUM(num) FROM taken_percent WHERE taken_percentage == 0.0;")
+    [never_taken_static, never_taken_dynamic] = cursor.fetchone()
+    if not never_taken_dynamic:
+        never_taken_dynamic = 0
+    static_list.append(never_taken_static)
+    dynamic_list.append(never_taken_dynamic)
+    name_list.append('never taken')
+    print(f"never taken static: {never_taken_static}, dynamic {never_taken_dynamic}")
+    
+    # cursor.execute("SELECT * FROM taken_percent WHERE taken_percentage == 0.0;")
+    for num in range(10):
+        cursor.execute(f"SELECT COUNT(*), SUM(num) FROM taken_percent WHERE taken_percentage == 0.0 AND num == {num};")
+        [st, dy] = cursor.fetchone()
+        print(f"never taken branches occurring {num+1} times static {st}, dynamic {dy}:")
+        
+    cursor.execute("SELECT COUNT(*), SUM(num) FROM taken_percent WHERE taken_percentage == 0.0 AND num > 10;")
+    [st, dy] = cursor.fetchone()
+    print(f"always not taken branches occurring more than 10 times static {st}, dynamic {dy}")
+    
+    # draw bar chart of static
+    
+    # draw bar chart seperatedly by static and dynamic of two graphs
+        
+    x = np.arange(len(name_list))
+    print(x)
+    width = 0.7
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+    
+    rects1 = ax1.bar(x, static_list, width, label='static')
+    ax1.set_ylabel('Branches')
+    ax1.set_title('Static Conditional Branches by taken percentage')
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(name_list, rotation=45, ha='right')
+    ax1.legend()
+
+    rects2 = ax2.bar(x, dynamic_list, width, label='dynamic')
+    ax2.set_ylabel('Branches')
+    ax2.set_title('Dynamic Conditional Branches by taken percentage')
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(name_list, rotation=45, ha='right')
+    # ax2.tick_params(axis='x', rotation=45, ha='right')
+    ax2.legend()
+    
+
+    # plt.xticks(rotation=45)
+    fig.tight_layout()
+    plt.savefig(os.path.join(get_dir(db_path), res_dir_name, 'branch_taken_percentage.png'))
+    
+    ############ branch offset bits stacked line graph ############
+    # 百分比累计折线图
+    x = np.arange(1, 14)
+    cursor.execute("SELECT offset_bits, COUNT(*), SUM(num) FROM taken_percent WHERE offset_bits != 0 GROUP BY offset_bits ORDER BY offset_bits")
+    offset_bits = cursor.fetchall()
+    df = pd.DataFrame(offset_bits, columns=['offset_bits', 'static', 'dynamic'])
+    df['static_percent'] = ((df['static'] / df['static'].sum()) * 100).cumsum()
+    df['dynamic_percent'] = ((df['dynamic'] / df['dynamic'].sum()) * 100).cumsum()
+    
+    plt.cla()
+    fig, ((ax1, ax2)) = plt.subplots(1, 2, figsize=(12, 6))
+    ax1.plot(df['offset_bits'], df['static_percent'], label='cond_static', marker='o', color='r')
+    ax1.set_title('Static Branches by offset bits')
+    ax1.set_xlabel('offset bits')
+    ax1.set_ylabel('percentage')
+    # ax1.set_xticks(x)
+    ax1.legend()
+    
+    ax2.plot(df['offset_bits'], df['dynamic_percent'], label='cond_dynamic', marker='o', color='r')
+    ax2.set_title('Dynamic Branches by offset bits')
+    ax2.set_xlabel('offset bits')
+    ax2.set_ylabel('percentage')
+    # ax2.set_xticks(x)
+    ax2.legend()
+    
+    # get offset bits of jal from BPTRACE(controlType == 1 or 2)
+    if not check_table_existence(cursor, 'jal_offset_bits'):
+        cursor.execute("""
+        CREATE TABLE jal_offset_bits AS
+        WITH CTE AS (
+            SELECT
+                controlPC,
+                controlType,
+                COUNT(*) AS num,
+                MAX(target) AS jump_target
+            FROM
+                BPTRACE
+            WHERE
+                controlType == 1 OR controlType == 2
+            GROUP BY
+                controlPC
+        )
+        SELECT
+            *
+        FROM
+            CTE
+        """)
+        cursor.execute("ALTER TABLE jal_offset_bits ADD COLUMN offset_bits INTEGER")
+        cursor.execute("""
+            UPDATE jal_offset_bits
+            SET offset_bits = CAST(CEIL(LOG2(ABS(jump_target - controlPC)+1)) AS INTEGER)
+        """)
+    
+    cursor.execute("SELECT offset_bits, COUNT(*), SUM(num) FROM jal_offset_bits GROUP BY offset_bits ORDER BY offset_bits")
+    jal_offset_bits = cursor.fetchall()
+    df = pd.DataFrame(jal_offset_bits, columns=['offset_bits', 'static_num', 'dynamic_num'])
+    df['static_percent'] = ((df['static_num'] / df['static_num'].sum()) * 100).cumsum()
+    df['dynamic_percent'] = ((df['dynamic_num'] / df['dynamic_num'].sum()) * 100).cumsum()
+    
+    ax1.plot(df['offset_bits'], df['static_percent'], label='jal_static', marker='o', color='g')
+    # ax1.set_title('Static JAL by offset bits')
+    # ax1.set_xlabel('offset bits')
+    # ax1.set_ylabel('percentage')
+    # ax1.set_xticks(x)
+    # ax1.legend()
+    
+    ax2.plot(df['offset_bits'], df['dynamic_percent'], label='jal_dynamic', marker='o', color='g')
+    # ax2.set_title('Dynamic JAL by offset bits')
+    # ax2.set_xlabel('offset bits')
+    # ax2.set_ylabel('percentage')
+    # ax2.set_xticks(x)
+    # ax2.legend()
+
+
+    
+    ############ jalr ##############
+    # jalr may have more than one target
+    if not check_table_existence(cursor, 'jalr_offset_bits'):
+        # cursor.execute("SELECT controlPC, COUNT(*) AS num FROM BPTRACE WHERE controlType == 3 OR controlType == 5 GROUP BY controlPC ORDER BY num")
+        # jalrs = cursor.fetchall()
+        # print("jalr branch num:", len(jalrs))
+        # for jalr in jalrs:
+        #     print(jalr['controlPC'], jalr['num'])
+        cursor.execute("""
+        CREATE TABLE jalr_offset_bits AS
+        WITH CTE AS (
+            SELECT
+                controlPC,
+                controlType,
+                COUNT(*) AS num,
+                target as jump_target
+            FROM
+                BPTRACE
+            WHERE
+                controlType == 3 OR controlType == 5
+            GROUP BY
+                controlPC, target
+        )
+        SELECT
+            *
+        FROM
+            CTE
+        """)
+        cursor.execute("ALTER TABLE jalr_offset_bits ADD COLUMN offset_bits INTEGER")
+        cursor.execute("""
+            UPDATE jalr_offset_bits
+            SET offset_bits = CAST(CEIL(LOG2(ABS(jump_target - controlPC)+1)) AS INTEGER)
+        """)
+        
+    # number of different targets of each jalr
+    cursor.execute("""
+        SELECT controlPC, COUNT(*) AS target_num
+        FROM jalr_offset_bits
+        GROUP BY controlPC
+        HAVING target_num > 1
+        ORDER BY num DESC
+    """)
+    
+    # draw a bar chart of jalr with different targets
+    jalr_targets = cursor.fetchall()
+
+
+    # dynamic jalr offset bits
+    cursor.execute("SELECT offset_bits, COUNT(*), SUM(num) FROM jalr_offset_bits GROUP BY offset_bits ORDER BY offset_bits")
+    jalr_offset_bits = cursor.fetchall()
+    df = pd.DataFrame(jalr_offset_bits, columns=['offset_bits', 'static_num', 'dynamic_num'])
+    df['static_percent'] = ((df['static_num'] / df['static_num'].sum()) * 100).cumsum()
+    df['dynamic_percent'] = ((df['dynamic_num'] / df['dynamic_num'].sum()) * 100).cumsum()
+    # plt.savefig(os.path.join(get_dir(db_path), res_dir_name, 'jalr_offset_bits.png'))
+    
+    x = np.arange(1, 40)
+    # plt.cla()
+    # fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+    ax1.plot(df['offset_bits'], df['static_percent'], label='jalr_static_target', marker='o', color='b')
+    # ax1.set_title('Static JALR by offset bits(each target count for a static jalr)')
+    # ax1.set_xlabel('offset bits')
+    # ax1.set_ylabel('percentage')
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(x, rotation=45, ha='right')
+    ax1.legend()
+    
+    ax2.plot(df['offset_bits'], df['dynamic_percent'], label='jalr_dynamic', marker='o', color='b')
+    # ax2.set_title('Dynamic JALR by offset bits')
+    # ax2.set_xlabel('offset bits')
+    # ax2.set_ylabel('percentage')
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(x, rotation=45, ha='right')
+    ax2.legend()
+    plt.savefig(os.path.join(get_dir(db_path), res_dir_name, 'branch_offset_bits.png'))
+    
+    # draw a bar chart of jalr with different targets
+    df = pd.DataFrame(jalr_targets, columns=['controlPC', 'num'])
+    df['controlPC'] = df['controlPC'].apply(lambda x: format(x, 'x'))
+    df.to_csv(os.path.join(get_dir(db_path), res_dir_name, 'jalr_multiple_targets.csv'), index=False)
+
+    plt.cla()
+    fig, ax = plt.subplots(figsize=(6, 6))
+    
+    df['controlPC'] = df['controlPC'].astype(str)
+    ax.plot(df['controlPC'], df['num'], marker='o')
+    ax.set_xticks(range(len(df['controlPC'])))
+    ax.set_xticklabels(df['controlPC'], rotation=45, ha='right')
+    # plt.tight_layout()
+    fig.savefig(os.path.join(get_dir(db_path), res_dir_name, 'jalr_targets.png'))
+    
+
+    
+    
+
 
     
     
