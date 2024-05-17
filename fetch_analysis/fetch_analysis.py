@@ -454,6 +454,7 @@ def ftb_analysis(db_connect, db_path):
     num_entry_of_each_type[EntryType.EMPTY] = ftb_set * ftb_way
 
     current_cycle = 0
+    df = pd.DataFrame(columns=['cycle', '1-branch-entry', '2-branch-entry']+list(EntryType.__members__.keys()))
     for record in get_one_record_from_ftb_trace(iterate_cursor):
         idx = record['idx']
         way = record['way']
@@ -461,14 +462,18 @@ def ftb_analysis(db_connect, db_path):
         branch_num = count_branch_num_in_ftb_record(record)
         entry_type = get_entry_type(record)
         
+        df_row = {'cycle': current_cycle}
         s = ''
         for i in range(numBr):
             s += f", {i+1}_branch_entry: {num_entry_of_branch_num[i]}"
+            df_row[f'{i+1}-branch-entry'] = num_entry_of_branch_num[i]
         for ty in EntryType:
             s += f", {ty.name}: {num_entry_of_each_type[ty]}"
+            df_row[ty.name] = num_entry_of_each_type[ty]
         debug_print(f"idx {idx}, way {way}, cycle {cycle}, branch num {branch_num}")
         prev_entry_type = EntryType(ftb[idx][way])
         if prev_entry_type != entry_type:
+            df = pd.concat([df, pd.DataFrame([df_row])], ignore_index=True)
             print(f"cycle {current_cycle} to {cycle}{s}")
             prev_branch_num = get_num_branch_from_entry_type(prev_entry_type)
             debug_print(f"prev branch num {prev_branch_num}, type {prev_entry_type.name} of idx {idx}, way {way}")
@@ -480,6 +485,30 @@ def ftb_analysis(db_connect, db_path):
             num_entry_of_each_type[entry_type] += 1
             ftb[idx][way] = entry_type.value
             current_cycle = cycle
+        
+    # plot df, two graphs:
+    # entry of one/two branches, entry of each type
+    # both graphs have x-axis as cycle, y-axis as entry number
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+    df.plot(x='cycle', y=['1-branch-entry', '2-branch-entry'], ax=ax1)
+    ax1.set_title('Entry number of one/two branches')
+    ax1.set_ylabel('Entry number')
+    ax1.set_xlabel('Cycle')
+    # 1M cycles per tick
+    ax1.xaxis.set_major_locator(ticker.MultipleLocator(100000))
+    # the sum of each entry type should be equal to the total number of entries
+    # thus we want to draw a stack area chart
+    df.plot.area(x='cycle', y=list(EntryType.__members__.keys()), ax=ax2, stacked=True)
+    ax2.set_title('Entry number of each type')
+    ax2.set_ylabel('Entry number')
+    ax2.set_xlabel('Cycle')
+    ax2.xaxis.set_major_locator(ticker.MultipleLocator(100000))
+    
+    plt.tight_layout()
+    
+    fig.savefig(os.path.join(get_dir(db_path), res_dir_name, 'ftb_analysis.png'))
+    
+    
         
 def branch_analysis(db_connect, db_path):
     cursor = db_connect.cursor()
