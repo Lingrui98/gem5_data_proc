@@ -99,21 +99,20 @@ $(BRANCH_FILES): %/branch.log : %/bp.db
 
 clean-fetch_analysis:
 	@rm -rf $(ANALAYSIS_FILES)
-	@rm -rf $(shell find $(BASE_DIR) -type d -name 'fetch_result')
+	@find $(BASE_DIR)/**/fetch_result -name '*cache*' -type f -exec rm -f {} \;
+	@find $(BASE_DIR)/**/fetch_result -name '*fetch*' -type f -exec rm -f {} \;
 
 clean-bb:
 	@rm -rf $(BB_FILES)
-	@rm -rf $(shell find $(BASE_DIR) -type d -name 'fetch_result')
 
 clean-ftb:
 	@rm -rf $(FTB_FILES)
-	@rm -rf $(shell find $(BASE_DIR) -type d -name 'fetch_result')
+	@find $(BASE_DIR)/**/fetch_result -name 'ftb*' -type f -exec rm -f {} \;
 
 clean-branch:
 	@rm -rf $(BRANCH_FILES)
-	@rm -rf $(shell find $(BASE_DIR) -type d -name 'fetch_result')
+	@find $(BASE_DIR)/**/fetch_result -name 'branch_*' -type f -exec rm -f {} \;
+	@find $(BASE_DIR)/**/fetch_result -name 'jalr*' -type f -exec rm -f {} \;
 
 clean: clean-fetch_analysis clean-bb clean-ftb clean-branch
-
-# @echo "Processing $@"
-# @python3 $(PYTHON_SCRIPT) --db $^ > $@
+	@rm -rf $(shell find $(BASE_DIR) -type d -name 'fetch_result')
