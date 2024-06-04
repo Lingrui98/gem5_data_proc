@@ -1,6 +1,6 @@
 brief_targets = [
     '(?:cpus?|switch_cpus_1)\.(ipc)',
-    # '(?:cpus?|switch_cpus_1)\.(cpi)',
+    '(?:cpus?|switch_cpus_1)\.(cpi)',
     '(?:cpus?|switch_cpus_1)\.committed(Insts)',
     # '(?:cpus?|switch_cpus_1)\.(lastCommitTick)',
     # 'host_(inst_rate)',
@@ -46,6 +46,7 @@ cache_targets = [
     # 'cpu\.(dcache\.overallAcc)esses::cpu\.data',
     # 'cpu\.(dcache\.demandAcc)esses::total',
     'cpu\.(dcache\.demandMiss)es::total',
+    'cpu\.(icache\.demandMiss)es::total',
     # 'cpu\.iew\.iew(ExecLoadInsts)',
 ]
 
@@ -97,7 +98,8 @@ LievenStalls = [
         'BpStall',
         'IntStall',
         'TrapStall',
-        'FragStall',
+        'FetchFragStall',
+        'OtherFragStall',
         'SquashStall',
         'FetchBufferInvalid',
         'InstMisPred',
@@ -128,6 +130,7 @@ FragTargets = [
 def add_topdown_targets():
     for stall in LievenStalls:
         topdown_targets.append(r'system\.cpu\.iew\.dispatchStallReason::({})'.format(stall))
+        print(stall)
 
 add_topdown_targets()
 
@@ -142,10 +145,16 @@ warmup_targets = [
 ]
 
 branch_targets = [
-    '(?:cpus?|switch_cpus_1)\.(?:diewxc|commit|iewx)\.(branchMispredicts)',
+    # '(?:cpus?|switch_cpus_1)\.(?:diewxc|commit|iewx)\.(branchMispredicts)',
     '(?:cpus?|switch_cpus_1)?\.(?:diewxc\.exec_|commit\.)(branches)',
-    '(?:cpus?|switch_cpus_1)?\.branchPred\.(indirectMispred)icted',
-    '(?:cpus?|switch_cpus_1)?\.branchPred\.(RASIncorrect)',
+    # '(?:cpus?|switch_cpus_1)?\.branchPred\.(indirectMispred)icted',
+    # '(?:cpus?|switch_cpus_1)?\.branchPred\.(RASIncorrect)',
+    '(?:cpus?|switch_cpus_1)?\.(?:branchPred\.)(condMiss)',
+    '(?:cpus?|switch_cpus_1)?\.(?:branchPred\.)(uncondMiss)',
+    '(?:cpus?|switch_cpus_1)?\.(?:branchPred\.)(returnMiss)',
+    '(?:cpus?|switch_cpus_1)?\.(?:branchPred\.)(otherMiss)',
+    '(?:cpus?|switch_cpus_1)?\.(?:branchPred\.)(ftb\.updateMiss)',
+    # '(?:cpus?|switch_cpus_1)?\.(?:branchPred\.)(condMiss)',
     # 'cpu\.commit\.(branches)',
     # 'cpu\.commit\.(branchMispredicts)',
     # 'iew\.iewExec(LoadInsts)',

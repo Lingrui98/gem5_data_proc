@@ -10,10 +10,10 @@ import os.path as osp
 
 def draw():
     results = {
-        "GEM5-0429":
-            ("results/gem5-topdown-example-weighted.csv", "GEM5"),
-        "XS-0429": 
-            ("results/xs-topdown-example-weighted.csv", "XS"),
+        "fdip":
+            ("example-scripts/results/fdip_on_topdown.csv", "GEM5"),
+        "no-fdip": 
+            ("example-scripts/results/fdip_base_topdown.csv", "GEM5"),
     }
 
     configs = list(results.keys())
@@ -72,9 +72,9 @@ def draw():
         'DTlbStall': 'MergeLoad',
 
         # Frontend
-        'IcacheStall': 'MergeFrontend',
-        'ITlbStall': 'MergeFrontend',
-        'FragStall': 'MergeFrontend',
+        # 'IcacheStall': 'MergeFrontend',
+        # 'ITlbStall': 'MergeFrontend',
+        # 'FetchFragStall': 'MergeFrontend',
 
         # BP
         'BpStall': 'MergeBadSpec',
@@ -90,9 +90,10 @@ def draw():
         'TrapStall': 'MergeMisc',
         'IntStall': 'MergeMisc',
         'ResumeUnblock': 'MergeMisc',
-        'FetchBufferInvalid': 'MergeFrontend',
+        'OtherFragStall': 'MergeMisc',
+        # 'FetchBufferInvalid': 'MergeFrontend',
         'OtherStall': 'MergeMisc',
-        'OtherFetchStall': 'MergeFrontend',
+        # 'OtherFetchStall': 'MergeFrontend',
     }
     xs_coarse_rename_map = {
         'OverrideBubble': 'MergeFrontend',
@@ -296,9 +297,11 @@ def draw():
 
                 # df['BadSpec'] = df['BadSpecInst'] + df['BadSpec']
                 # df.drop(columns=['BadSpecInst'], inplace=True)
-
-
-        df = df.astype(float)
+        print(df.columns)
+        pd.set_option('display.max_columns', None)
+        print(df)
+        # df = df.drop(columns=['workload', 'bmk'])
+        # df = df.astype(float)
         print(df.columns)
         renamed_dfs.append(df)
 
@@ -335,8 +338,8 @@ def draw():
         # df = df[put_to_front  + [ col for col in df.columns if col not in put_to_front] ]
         df = df[put_to_front + [ col for col in df.columns if col not in put_to_front]]
 
-        # to_drop = ['bmk', 'point', 'workload']
-        # df = df.drop(columns=to_drop)
+        to_drop = ['bmk', 'point', 'workload']
+        df = df.drop(columns=to_drop)
         # drop non-numerical columns
         # df = df.drop(columns=[col for col in df.columns if not col.startswith(
         #     'layer') and not col.startswith('ipc') and not col.startswith('cpi')])
@@ -379,6 +382,8 @@ def draw():
             x = np.arange(len(df), dtype=float)
         for component, color, default_hatch in zip(df.columns, colors[:len(df.columns)], hatches[:len(df.columns)]):
             print(component)
+            # if type(component) is str:
+            #     continue
             if component in highlight_hatches:
                 hatch = highlight_hatches[component]
             else:
@@ -392,6 +397,12 @@ def draw():
             if True:
                 p = ax.bar(x, df[component], bottom=bottom,
                         width=width, color=color, label=label, edgecolor='black', hatch=hatch)
+                # print(1)
+                # print(type(df[component]))
+                # print(df[component])
+                # print(2)
+                # print(type(bottom))
+                # print(bottom)
                 highest = max(highest, max(bottom + df[component]))
                 bottom += df[component]
             # print('New bottom of astar:', bottom[df.index == 'astar'])

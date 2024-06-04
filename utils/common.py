@@ -538,13 +538,15 @@ def add_overall_qos(hpt: str, lpt: str, d: dict) -> None:
 def add_branch_mispred(d: dict) -> None:
     branches = float(d['branches'])
     mispred = float(d.get('branchMispredicts', 0.0))
-    ind_mispred = float(d.get('indirectMispred', 0.0))
+    ind_mispred = float(d.get('otherMiss', 0.0))
     d['mispredict rate'] = mispred / branches
     print('Commit instr', d['Insts'], mispred)
     d['total branch MPKI'] = mispred / float(d['Insts']) * 1000
     d['indirect branch MPKI'] = ind_mispred / float(d['Insts']) * 1000
     d['direct branch MPKI'] = d['total branch MPKI'] - d['indirect branch MPKI']
-    d['return MPKI'] = float(d['RASIncorrect']) / float(d['Insts']) * 1000
+    d['return MPKI'] = float(d['returnMiss']) / float(d['Insts']) * 1000
+    d['FTB MPKI'] = float(d['ftb.updateMiss']) / float(d['Insts']) * 1000
+    d['cond MPKI'] = float(d['condMiss']) / float(d['Insts']) * 1000
 
 def add_mem_bw(d: dict) -> None:
     to_mc_total = float(d.get('WritebackDirty', 0)) + float(d.get('ReadResp', 0)) + float(d.get('ReadExResp', 0))
@@ -571,10 +573,10 @@ def add_cache_mpki(d: dict) -> None:
 
     d['l1D.MPKI'] = float(d.get('dcache.demandMiss', 0.0)) / float(d['Insts']) * 1000
 
-    # if 'icache.demandMisses' in d:
-    #     d['L1I_MPKI'] = float(d['icache.demandMisses']) / float(d['Insts']) * 1000
-    # else:
-    #     d['L1I_MPKI'] = 0.0
+    if 'icache.demandMiss' in d:
+        d['L1I_MPKI'] = float(d['icache.demandMiss']) / float(d['Insts']) * 1000
+    else:
+        d['L1I_MPKI'] = 0.0
 
 def xs_add_cache_mpki(d: dict) -> None:
     # L2/L3
